@@ -2,6 +2,10 @@ from flask import Flask, jsonify, request
 from flasgger import Swagger, swag_from
 from flask_cors import CORS
 
+import atexit
+
+from dataset import load_config, Database
+
 app = Flask(__name__)
 CORS(app)
 swagger_config = {
@@ -23,11 +27,11 @@ swagger_config = {
 template = {
     "swagger": "2.0",
     "info": {
-        "title": "My API",
-        "description": "API for my data",
+        "title": "API",
+        "description": "API for ESG platform",
         "version": "1.0"
     },
-    "basePath": "/api",  # base bash for blueprint registration
+    "basePath": "",  # base bash for blueprint registration
     "schemes": [
         "http",
         "https"
@@ -54,23 +58,38 @@ def colors(palette):
 
 # ===============================================================
 
-# 模拟数据库中的用户数据
-users = []
-
-
 @app.route('/login', methods=['POST'])
 @swag_from('api/login.yml')
 def login():
     data = request.get_json()
     email = data.get('email')
     password = data.get('password')
-    if not email or not password:
-        return jsonify({'error': 'Email and password are required'}), 400
-    user = next((user for user in users if user['email'] == email), None)
-    if user and user['password'] == password:
-        return jsonify({'message': 'Login successfully'}), 200
+    google_id = data.get('google_id')
+
+    if email and password:
+        # 使用邮箱和密码登录
+        cursor = db.connection.cursor(dictionary=True)
+        query = "SELECT * FROM users WHERE email = %s"
+        cursor.execute(query, (email,))
+        user = cursor.fetchone()
+        cursor.close()
+        if user and user['password'] == password:
+            return jsonify({'message': 'Login successfully'}), 200
+        else:
+            return jsonify({'error': 'Invalid email or password'}), 400
+    elif google_id:
+        # 使用 Google ID 登录
+        cursor = db.connection.cursor(dictionary=True)
+        query = "SELECT * FROM users WHERE google_id = %s"
+        cursor.execute(query, (google_id,))
+        user = cursor.fetchone()
+        cursor.close()
+        if user:
+            return jsonify({'message': 'Login successfully'}), 200
+        else:
+            return jsonify({'error': 'Invalid Google ID'}), 400
     else:
-        return jsonify({'error': 'Invalid email or password'}), 400
+        return jsonify({'error': 'Email and password or Google ID are required'}), 400
 
 
 @app.route('/register', methods=['POST'])
@@ -80,15 +99,55 @@ def register():
     name = data.get('name')
     email = data.get('email')
     password = data.get('password')
-    if not name or not email or not password:
-        return jsonify({'error': 'Name, email, and password are required'}), 400
-    if any(user['email'] == email for user in users):
+    google_id = data.get('google_id')
+
+    # 检查是否使用了谷歌账户注册
+    if google_id:
+        # 如果使用谷歌账户注册，确保传递了必要的字段
+        if not name or not email or not google_id:
+            return jsonify({'error': 'Name, email, and google_id are required'}), 400
+        password = ''  # 将密码设置为空字符串
+    else:
+        # 如果不是使用谷歌账户注册，确保传递了必要的字段
+        if not name or not email or not password:
+            return jsonify({'error': 'Name, email, and password are required'}), 400
+        google_id = ''  # 将google_id设置为空字符串
+
+    cursor = db.connection.cursor()
+    check_query = "SELECT COUNT(*) FROM users WHERE email = %s"
+    cursor.execute(check_query, (email,))
+    count = cursor.fetchone()[0]
+    if count > 0:
+        cursor.close()
         return jsonify({'error': 'Email already exists'}), 400
-    user = {'name': name, 'email': email, 'password': password}
-    users.append(user)
-    print(f"注册成功！{users}")
-    return jsonify({'message': 'Registere successfully'}), 200
+
+    insert_query = "INSERT INTO users (name, email, password, google_id) VALUES (%s, %s, %s, %s)"
+    cursor.execute(insert_query, (name, email, password, google_id))
+    db.connection.commit()
+    cursor.close()
+    print(f"注册成功！{data}")
+    return jsonify({'message': 'Registered successfully'}), 200
 
 
 if __name__ == "__main__":
+    # Load dataset configuration
+    config = load_config('config.yml')
+
+    # Initialize database
+    db = Database(config['host'], config['user'],
+                  config['password'], config['name'])
+
+    # Attempt to connect to the database
+    db.connect()
+
+    # Create the database if it doesn't exist
+    db.create_database_if_not_exists()
+
+    # Initialize database tables
+    db.initialize()
+
+    # Register a function to destroy the database when the program exits
+    atexit.register(db.destroy_database)
+
+    # Start Flask application
     app.run(debug=True)
