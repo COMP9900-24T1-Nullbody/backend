@@ -64,7 +64,8 @@ class Database:
             name VARCHAR(255) NOT NULL,
             email VARCHAR(255) NOT NULL UNIQUE,
             password VARCHAR(255) NOT NULL,
-            google_id VARCHAR(255) UNIQUE
+            google_id VARCHAR(255) UNIQUE,
+            microsoft_id VARCHAR(255) UNIQUE
         )
         """
         try:

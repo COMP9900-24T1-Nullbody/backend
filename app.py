@@ -56,19 +56,9 @@ def login():
     email = data.get("email")
     password = data.get("password")
     google_id = data.get("google_id")
+    microsoft_id = data.get("microsoft_id")
 
-    if email and password:
-        # 使用邮箱和密码登录
-        cursor = db.connection.cursor()
-        query = "SELECT * FROM users WHERE email = %s"
-        cursor.execute(query, (email,))
-        user = cursor.fetchone()
-        cursor.close()
-        if user and user["password"] == password:
-            return jsonify({"message": "Login successfully"}), 200
-        else:
-            return jsonify({"error": "Invalid email or password"}), 400
-    elif google_id:
+    if google_id:
         # 使用 Google ID 登录
         cursor = db.connection.cursor()
         query = "SELECT * FROM users WHERE google_id = %s"
@@ -79,6 +69,28 @@ def login():
             return jsonify({"message": "Login successfully"}), 200
         else:
             return jsonify({"error": "Invalid Google ID"}), 400
+    elif microsoft_id:
+        # 使用 Microsoft ID 登录
+        cursor = db.connection.cursor()
+        query = "SELECT * FROM users WHERE microsoft_id = %s"
+        cursor.execute(query, (microsoft_id,))
+        user = cursor.fetchone()
+        cursor.close()
+        if user:
+            return jsonify({"message": "Login successfully"}), 200
+        else:
+            return jsonify({"error": "Invalid Microsoft ID"}), 400
+    elif email and password:
+        # 使用邮箱和密码登录
+        cursor = db.connection.cursor()
+        query = "SELECT * FROM users WHERE email = %s"
+        cursor.execute(query, (email,))
+        user = cursor.fetchone()
+        cursor.close()
+        if user and user["password"] == password:
+            return jsonify({"message": "Login successfully"}), 200
+        else:
+            return jsonify({"error": "Invalid email or password"}), 400
     else:
         return jsonify({"error": "Email and password or Google ID are required"}), 400
 
@@ -91,18 +103,26 @@ def register():
     email = data.get("email")
     password = data.get("password")
     google_id = data.get("google_id")
+    microsoft_id = data.get("microsoft_id")
 
-    # 检查是否使用了谷歌账户注册
     if google_id:
         # 如果使用谷歌账户注册，确保传递了必要的字段
         if not name or not email or not google_id:
             return jsonify({"error": "Name, email, and google_id are required"}), 400
-        password = ""  # 将密码设置为空字符串
+        password = "" 
+        microsoft_id = ""
+    elif microsoft_id:
+        # 如果使用微软账户注册，确保传递了必要的字段
+        if not name or not email or not microsoft_id:
+            return jsonify({"error": "Name, email, and microsoft_id are required"}), 400
+        password = "" 
+        google_id = ""
     else:
         # 如果不是使用谷歌账户注册，确保传递了必要的字段
         if not name or not email or not password:
             return jsonify({"error": "Name, email, and password are required"}), 400
-        google_id = ""  # 将google_id设置为空字符串
+        google_id = "" 
+        microsoft_id = ""
 
     cursor = db.connection.cursor()
     check_query = "SELECT COUNT(*) FROM users WHERE email = %s"
@@ -113,9 +133,9 @@ def register():
         return jsonify({"error": "Email already exists"}), 400
 
     insert_query = (
-        "INSERT INTO users (name, email, password, google_id) VALUES (%s, %s, %s, %s)"
+        "INSERT INTO users (name, email, password, google_id, microsoft_id) VALUES (%s, %s, %s, %s, %s)"
     )
-    cursor.execute(insert_query, (name, email, password, google_id))
+    cursor.execute(insert_query, (name, email, password, google_id, microsoft_id))
     db.connection.commit()
     cursor.close()
     print(f"注册成功！{data}")
