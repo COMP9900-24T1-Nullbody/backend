@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, redirect
 from flasgger import Swagger, swag_from
 from flask_cors import CORS
 
@@ -140,6 +140,11 @@ def register():
     cursor.close()
     print(f"注册成功！{data}")
     return jsonify({"message": "Registered successfully"}), 200
+
+
+@app.route('/')
+def index():
+    return redirect(swagger_config["specs_route"])
 
 
 if __name__ == "__main__":
