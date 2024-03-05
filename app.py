@@ -1,8 +1,13 @@
 from flask import Flask, jsonify, request, redirect
 from flasgger import Swagger, swag_from
 from flask_cors import CORS
-
 from dataset import DatabaseType, load_config, Database
+import random
+import smtplib
+from email.mime.text import MIMEText
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta
+import re
 
 app = Flask(__name__)
 CORS(app)
@@ -82,12 +87,14 @@ def login():
             return jsonify({"error": "Invalid Microsoft ID"}), 400
     elif email and password:
         # 使用邮箱和密码登录
+        # cursor = db.connection.cursor(dictionary=True)
         cursor = db.connection.cursor()
         query = "SELECT * FROM users WHERE email = %s"
         cursor.execute(query, (email,))
-        user = cursor.fetchone()
+        user = cursor.fetchone() #fetch出来的是一个tuple
+        # print("=================================",user)#(1, '
         cursor.close()
-        if user and user["password"] == password:
+        if user and user[3] == password:
             return jsonify({"message": "Login successfully"}), 200
         else:
             return jsonify({"error": "Invalid email or password"}), 400
@@ -140,6 +147,85 @@ def register():
     cursor.close()
     print(f"注册成功！{data}")
     return jsonify({"message": "Registered successfully"}), 200
+
+
+
+# 存储用户的验证码和过期时间
+user_codes = {}
+
+@app.route("/request_reset_password", methods=["POST"])
+@swag_from("api/request_reset_password.yml")
+def request_reset_password():
+    data = request.get_json()
+    email = data.get("email")
+
+    # 邮箱是否存在
+    if not email:
+        return jsonify({"error": "Email is required"}), 400
+    
+    # 邮箱格式是否正确
+    if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+        return jsonify({"error": "Invalid email format"}), 400
+
+    cursor = db.connection.cursor()
+    query = "SELECT * FROM users WHERE email = %s"
+    cursor.execute(query, (email,))
+    user = cursor.fetchone()
+    cursor.close()
+
+    if not user:
+        return jsonify({"error": "User not found"}), 400
+
+    # 生成随机验证码和过期时间
+    code = random.randint(100000, 999999)
+    expiry_time = datetime.now() + timedelta(minutes=10)  # 10分钟后过期
+    user_codes[email] = {"code": code, "expiry_time": expiry_time}
+    # print("==========user_codes================",user_codes)
+
+    # 发送验证码到用户邮箱
+    msg = MIMEText(f"Your verification code is {code}. It will expire in 10 minutes.")
+    msg['Subject'] = 'Password Reset Verification Code'
+    msg['From'] = 'noreply.comp9900nullbody@gmail.com'  # Replace with your email address
+    msg['To'] = email
+
+    s = smtplib.SMTP('smtp.gmail.com', 587)
+    s.starttls()
+    s.login('noreply.comp9900nullbody@gmail.com', 'wgeuoicxihvgwfeh')
+    s.send_message(msg)
+    s.quit()
+
+    return jsonify({"message": "Verification code sent to email"}), 200
+
+@app.route("/reset_password", methods=["POST"])
+@swag_from("api/reset_password.yml")
+def reset_password():
+    data = request.get_json()
+    email = data.get("email")
+    code = data.get("code")
+    new_password = data.get("new_password")
+    # print("==========data================",data)
+
+    if not email or not code or not new_password:
+        return jsonify({"error": "Email, code, and new password are required"}), 400
+    
+    # print("==========user_codes================",user_codes)
+    if datetime.now() > user_codes[email]["expiry_time"]:
+        return jsonify({"error": "Verification code expired"}), 400
+
+    if user_codes[email]["code"] != code:
+        return jsonify({"error": "Invalid verification code"}), 400
+
+    cursor = db.connection.cursor()
+    hashed_password = generate_password_hash(new_password)
+    update_query = "UPDATE users SET password = %s WHERE email = %s"
+    cursor.execute(update_query, (hashed_password, email))
+    db.connection.commit()
+    cursor.close()
+
+    # 删除验证码
+    del user_codes[email]
+
+    return jsonify({"message": "Password reset successfully"}), 200
 
 
 @app.route('/')
