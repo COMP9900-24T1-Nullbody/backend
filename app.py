@@ -2,7 +2,8 @@ from flask import Flask, jsonify, request
 from flasgger import Swagger, swag_from
 from flask_cors import CORS
 
-from dataset import DatabaseType, load_config, Database
+from utils.dataset import DatabaseType, load_config, Database
+from utils.token import generate_token
 
 app = Flask(__name__)
 CORS(app)
@@ -109,21 +110,22 @@ def register():
         # 如果使用谷歌账户注册，确保传递了必要的字段
         if not name or not email or not google_id:
             return jsonify({"error": "Name, email, and google_id are required"}), 400
-        password = "" 
+        password = ""
         microsoft_id = ""
     elif microsoft_id:
         # 如果使用微软账户注册，确保传递了必要的字段
         if not name or not email or not microsoft_id:
             return jsonify({"error": "Name, email, and microsoft_id are required"}), 400
-        password = "" 
+        password = ""
         google_id = ""
     else:
         # 如果不是使用谷歌账户注册，确保传递了必要的字段
         if not name or not email or not password:
             return jsonify({"error": "Name, email, and password are required"}), 400
-        google_id = "" 
+        google_id = ""
         microsoft_id = ""
 
+    # 检查email是否已被使用
     cursor = db.connection.cursor()
     check_query = "SELECT COUNT(*) FROM users WHERE email = %s"
     cursor.execute(check_query, (email,))
@@ -132,14 +134,35 @@ def register():
         cursor.close()
         return jsonify({"error": "Email already exists"}), 400
 
-    insert_query = (
-        "INSERT INTO users (name, email, password, google_id, microsoft_id) VALUES (%s, %s, %s, %s, %s)"
-    )
-    cursor.execute(insert_query, (name, email, password, google_id, microsoft_id))
-    db.connection.commit()
-    cursor.close()
-    print(f"注册成功！{data}")
-    return jsonify({"message": "Registered successfully"}), 200
+    if db.db_type == DatabaseType.POSTGRESQL:
+        insert_query = (
+            "INSERT INTO users (name, email, password, google_id, microsoft_id) "
+            "VALUES (%s, %s, %s, %s, %s) RETURNING id"
+        )
+
+        cursor.execute(insert_query, (name, email, password, google_id, microsoft_id))
+        # 提取插入的用户 ID
+        user_id = cursor.fetchone()[0]
+        db.connection.commit()
+        cursor.close()
+    elif db.db_type == DatabaseType.MYSQL:
+        insert_query = (
+            "INSERT INTO users (name, email, password, google_id, microsoft_id) "
+            "VALUES (%s, %s, %s, %s, %s)"
+        )
+        cursor.execute(insert_query, (name, email, password, google_id, microsoft_id))
+        user_id = cursor.lastrowid  # 获取最后插入的行的 ID
+
+        # 提交事务
+        db.connection.commit()
+        cursor.close()
+
+    # 生成token
+    token = generate_token(user_id)
+
+    print(f"注册成功！{data}, token: {token}")
+
+    return jsonify({"message": "Registered successfully", "token": token}), 200
 
 
 if __name__ == "__main__":
