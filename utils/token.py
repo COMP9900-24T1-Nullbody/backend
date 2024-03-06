@@ -2,16 +2,8 @@ import jwt
 import datetime
 import yaml
 
-# 读取配置文件
-with open("config.yml", "r") as config_file:
-    config = yaml.safe_load(config_file)
-
-# 获取密钥
-SECRET_KEY = config.get("secret_key")
-
-
 # 生成 token 的函数
-def generate_token(user_id):
+def generate_token(SECRET_KEY, user_id):
     payload = {
         "user_id": user_id,
         "exp": datetime.datetime.utcnow()
@@ -22,6 +14,6 @@ def generate_token(user_id):
 
 
 # 解密 token 的函数
-def decode(token):
+def decode(SECRET_KEY, token):
     payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
     return payload

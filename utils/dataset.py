@@ -2,7 +2,6 @@ import enum
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import mysql.connector
-import yaml
 
 
 class DatabaseType(enum.Enum):
@@ -75,10 +74,3 @@ class Database:
             print(f"Error: {err}")
 
         cursor.close()
-
-
-# Load database configuration from YAML file
-def load_config(filename):
-    with open(filename, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-    return config["database"]

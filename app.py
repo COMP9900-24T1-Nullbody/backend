@@ -1,8 +1,9 @@
 from flask import Flask, jsonify, request
 from flasgger import Swagger, swag_from
 from flask_cors import CORS
+import yaml
 
-from utils.dataset import DatabaseType, load_config, Database
+from utils.dataset import DatabaseType, Database
 from utils.token import generate_token
 
 app = Flask(__name__)
@@ -165,29 +166,38 @@ def register():
     return jsonify({"message": "Registered successfully", "token": token}), 200
 
 
+# helper function
+# Load database configuration from YAML file
+def load_config(filename):
+    with open(filename, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+    return config
+
 if __name__ == "__main__":
     # Load dataset configuration
     config = load_config("config.yml")
+    
+    SECRET_KEY = config.get("secret_key")
 
     # Initialize database
     db = None
-    if config["type"] == "mysql":
+    if config["database"]["type"] == "mysql":
         db = Database(
-            host=config["host"],
-            user=config["user"],
-            password=config["password"],
-            database=config["name"],
+            host=config["database"]["host"],
+            user=config["database"]["user"],
+            password=config["database"]["password"],
+            database=config["database"]["name"],
             db_type=DatabaseType.MYSQL,
-            port=config["port"],
+            port=config["database"]["port"],
         )
-    elif config["type"] == "postgresql":
+    elif config["database"]["type"] == "postgresql":
         db = Database(
-            host=config["host"],
-            user=config["user"],
-            password=config["password"],
-            database=config["name"],
+            host=config["database"]["host"],
+            user=config["database"]["user"],
+            password=config["database"]["password"],
+            database=config["database"]["name"],
             db_type=DatabaseType.POSTGRESQL,
-            port=config["port"],
+            port=config["database"]["port"],
         )
     else:
         print("Invalid sql type in config.yml!")
