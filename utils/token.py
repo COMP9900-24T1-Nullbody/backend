@@ -2,10 +2,17 @@ import jwt
 import datetime
 import yaml
 
+
 # 生成 token 的函数
-def generate_token(SECRET_KEY, user_id):
+def generate_token(SECRET_KEY, user_info):
+    id, name, email, password, google_id, microsoft_id = user_info
     payload = {
-        "user_id": user_id,
+        "id": id,
+        "name": name,
+        "email": email,
+        "password": password,
+        "google_id": google_id,
+        "microsoft_id": microsoft_id,
         "exp": datetime.datetime.utcnow()
         + datetime.timedelta(minutes=10),  # 设置 token 过期时间
     }
@@ -14,6 +21,6 @@ def generate_token(SECRET_KEY, user_id):
 
 
 # 解密 token 的函数
-def decode(SECRET_KEY, token):
+def decode_token(SECRET_KEY, token):
     payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
     return payload
