@@ -22,5 +22,11 @@ def generate_token(SECRET_KEY, user_info):
 
 # 解密 token 的函数
 def decode_token(SECRET_KEY, token):
-    payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-    return payload
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return payload
+    except jwt.exceptions.ExpiredSignatureError:
+        print("Error: token expired!")
+        return None
+    except:
+        return None

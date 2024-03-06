@@ -70,17 +70,27 @@ def login():
             password = user_info.get("password")
             google_id = user_info.get("google_id")
             microsoft_id = user_info.get("microsoft_id")
-            
+
             # 使用解码后的信息构建 SQL 查询语句
             cursor = db.connection.cursor()
             query = "SELECT * FROM users WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
-            cursor.execute(query, (user_id, name, email, password, google_id, microsoft_id))
+            cursor.execute(
+                query, (user_id, name, email, password, google_id, microsoft_id)
+            )
             user_info = cursor.fetchone()
             cursor.close()
             if user_info:
                 # 如果查询到匹配的用户信息，生成新的 token 返回给客户端
                 token = generate_token(SECRET_KEY, user_info)
-                return jsonify({"message": "Token detected. Auto-Login successfully", "token": token}), 200
+                return (
+                    jsonify(
+                        {
+                            "message": "Token detected. Auto-Login successfully",
+                            "token": token,
+                        }
+                    ),
+                    200,
+                )
             else:
                 return jsonify({"error": "Token info miss matched!"}), 400
         else:
@@ -96,7 +106,10 @@ def login():
             token = generate_token(SECRET_KEY, user_info)
             return jsonify({"message": "Login successfully", "token": token}), 200
         else:
-            return jsonify({"error": "Invalid Google ID"}), 400
+            return (
+                jsonify({"error": "Invalid Google ID or You haven't registered!"}),
+                400,
+            )
     elif microsoft_id:
         # 使用 Microsoft ID 登录
         cursor = db.connection.cursor()
@@ -108,12 +121,15 @@ def login():
             token = generate_token(SECRET_KEY, user_info)
             return jsonify({"message": "Login successfully", "token": token}), 200
         else:
-            return jsonify({"error": "Invalid Microsoft ID"}), 400
+            return (
+                jsonify({"error": "Invalid Microsoft ID or You haven't registered!"}),
+                400,
+            )
     elif email and password:
         # 使用邮箱和密码登录
         cursor = db.connection.cursor()
-        query = "SELECT * FROM users WHERE email = %s"
-        cursor.execute(query, (email,))
+        query = "SELECT * FROM users WHERE email = %s AND password = %s"
+        cursor.execute(query, (email, password))
         user_info = cursor.fetchone()
         cursor.close()
         if user_info and user_info["password"] == password:
