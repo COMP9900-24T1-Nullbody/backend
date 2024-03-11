@@ -1,3 +1,11 @@
+secret_key: "COMP9900_Nullbody"
+
+smtp:
+  host: smtp.gmail.com
+  user: noreply.comp9900nullbody@gmail.com
+  password: wgeuoicxihvgwfeh
+  port: 587
+
 # sql type: "mysql" or "postgresql"
 database:
   # # localhost - mysql

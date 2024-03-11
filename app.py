@@ -1,8 +1,10 @@
 from flask import Flask, jsonify, request, redirect
 from flasgger import Swagger, swag_from
 from flask_cors import CORS
+import yaml
 
-from dataset import DatabaseType, load_config, Database
+from utils.dataset import DatabaseType, Database
+from utils.token import generate_token, decode_token
 
 app = Flask(__name__)
 CORS(app)
@@ -47,8 +49,6 @@ def colors(palette):
 
 
 # ===============================================================
-
-
 @app.route("/login", methods=["POST"])
 @swag_from("api/login.yml")
 def login():
@@ -57,38 +57,84 @@ def login():
     password = data.get("password")
     google_id = data.get("google_id")
     microsoft_id = data.get("microsoft_id")
+    token = data.get("token")
 
-    if google_id:
+    if token:
+        # 解码 token 获取用户信息
+        user_info = decode_token(SECRET_KEY, token)
+        if user_info:
+            # 获取用户信息中的各个字段
+            user_id = user_info.get("id")
+            name = user_info.get("name")
+            email = user_info.get("email")
+            password = user_info.get("password")
+            google_id = user_info.get("google_id")
+            microsoft_id = user_info.get("microsoft_id")
+
+            # 使用解码后的信息构建 SQL 查询语句
+            cursor = db.connection.cursor()
+            query = "SELECT * FROM users WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
+            cursor.execute(
+                query, (user_id, name, email, password, google_id, microsoft_id)
+            )
+            user_info = cursor.fetchone()
+            cursor.close()
+            if user_info:
+                # 如果查询到匹配的用户信息，生成新的 token 返回给客户端
+                token = generate_token(SECRET_KEY, user_info)
+                return (
+                    jsonify(
+                        {
+                            "message": "Token detected. Auto-Login successfully",
+                            "token": token,
+                        }
+                    ),
+                    200,
+                )
+            else:
+                return jsonify({"error": "Token info miss matched!"}), 400
+        else:
+            return jsonify({"error": "Invalid token"}), 400
+    elif google_id:
         # 使用 Google ID 登录
         cursor = db.connection.cursor()
         query = "SELECT * FROM users WHERE google_id = %s"
         cursor.execute(query, (google_id,))
-        user = cursor.fetchone()
+        user_info = cursor.fetchone()
         cursor.close()
-        if user:
-            return jsonify({"message": "Login successfully"}), 200
+        if user_info:
+            token = generate_token(SECRET_KEY, user_info)
+            return jsonify({"message": "Login successfully", "token": token}), 200
         else:
-            return jsonify({"error": "Invalid Google ID"}), 400
+            return (
+                jsonify({"error": "Invalid Google ID or You haven't registered!"}),
+                400,
+            )
     elif microsoft_id:
         # 使用 Microsoft ID 登录
         cursor = db.connection.cursor()
         query = "SELECT * FROM users WHERE microsoft_id = %s"
         cursor.execute(query, (microsoft_id,))
-        user = cursor.fetchone()
+        user_info = cursor.fetchone()
         cursor.close()
-        if user:
-            return jsonify({"message": "Login successfully"}), 200
+        if user_info:
+            token = generate_token(SECRET_KEY, user_info)
+            return jsonify({"message": "Login successfully", "token": token}), 200
         else:
-            return jsonify({"error": "Invalid Microsoft ID"}), 400
+            return (
+                jsonify({"error": "Invalid Microsoft ID or You haven't registered!"}),
+                400,
+            )
     elif email and password:
         # 使用邮箱和密码登录
         cursor = db.connection.cursor()
-        query = "SELECT * FROM users WHERE email = %s"
-        cursor.execute(query, (email,))
-        user = cursor.fetchone()
+        query = "SELECT * FROM users WHERE email = %s AND password = %s"
+        cursor.execute(query, (email, password))
+        user_info = cursor.fetchone()
         cursor.close()
-        if user and user["password"] == password:
-            return jsonify({"message": "Login successfully"}), 200
+        if user_info and user_info["password"] == password:
+            token = generate_token(SECRET_KEY, user_info)
+            return jsonify({"message": "Login successfully", "token": token}), 200
         else:
             return jsonify({"error": "Invalid email or password"}), 400
     else:
@@ -104,26 +150,28 @@ def register():
     password = data.get("password")
     google_id = data.get("google_id")
     microsoft_id = data.get("microsoft_id")
+    token = data.get("token")
 
     if google_id:
         # 如果使用谷歌账户注册，确保传递了必要的字段
         if not name or not email or not google_id:
             return jsonify({"error": "Name, email, and google_id are required"}), 400
-        password = "" 
+        password = ""
         microsoft_id = ""
     elif microsoft_id:
         # 如果使用微软账户注册，确保传递了必要的字段
         if not name or not email or not microsoft_id:
             return jsonify({"error": "Name, email, and microsoft_id are required"}), 400
-        password = "" 
+        password = ""
         google_id = ""
     else:
         # 如果不是使用谷歌账户注册，确保传递了必要的字段
         if not name or not email or not password:
             return jsonify({"error": "Name, email, and password are required"}), 400
-        google_id = "" 
+        google_id = ""
         microsoft_id = ""
 
+    # 检查 email 是否已被使用
     cursor = db.connection.cursor()
     check_query = "SELECT COUNT(*) FROM users WHERE email = %s"
     cursor.execute(check_query, (email,))
@@ -132,14 +180,54 @@ def register():
         cursor.close()
         return jsonify({"error": "Email already exists"}), 400
 
-    insert_query = (
-        "INSERT INTO users (name, email, password, google_id, microsoft_id) VALUES (%s, %s, %s, %s, %s)"
+    # 插入用户信息
+    if db.db_type == DatabaseType.POSTGRESQL:
+        insert_query = (
+            "INSERT INTO users (name, email, password, google_id, microsoft_id) "
+            "VALUES (%s, %s, %s, %s, %s) RETURNING id, name, email, google_id, microsoft_id"
+        )
+
+        cursor.execute(insert_query, (name, email, password, google_id, microsoft_id))
+        # 提取插入的用户信息
+        user_info = cursor.fetchone()
+        db.connection.commit()
+        cursor.close()
+    elif db.db_type == DatabaseType.MYSQL:
+        insert_query = (
+            "INSERT INTO users (name, email, password, google_id, microsoft_id) "
+            "VALUES (%s, %s, %s, %s, %s)"
+        )
+        cursor.execute(insert_query, (name, email, password, google_id, microsoft_id))
+        user_id = cursor.lastrowid  # 获取最后插入的行的 ID
+
+        # 提交事务
+        db.connection.commit()
+
+        # 查询刚插入的用户信息
+        select_query = "SELECT * FROM users WHERE id = %s"
+        cursor.execute(select_query, (user_id,))
+        user_info = cursor.fetchone()
+
+        cursor.close()
+
+    # 生成 token
+    token = generate_token(SECRET_KEY, user_info)  # 用户 ID 是 user_info 的第一个元素
+
+    # 返回完整的用户信息和 token
+    return (
+        jsonify(
+            {"message": "Registered successfully", "user": user_info, "token": token}
+        ),
+        200,
     )
-    cursor.execute(insert_query, (name, email, password, google_id, microsoft_id))
-    db.connection.commit()
-    cursor.close()
-    print(f"注册成功！{data}")
-    return jsonify({"message": "Registered successfully"}), 200
+
+
+# helper function
+# Load database configuration from YAML file
+def load_config(filename):
+    with open(filename, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+    return config
 
 
 @app.route('/')
@@ -151,25 +239,27 @@ if __name__ == "__main__":
     # Load dataset configuration
     config = load_config("config.yml")
 
+    SECRET_KEY = config.get("secret_key")
+
     # Initialize database
     db = None
-    if config["type"] == "mysql":
+    if config["database"]["type"] == "mysql":
         db = Database(
-            host=config["host"],
-            user=config["user"],
-            password=config["password"],
-            database=config["name"],
+            host=config["database"]["host"],
+            user=config["database"]["user"],
+            password=config["database"]["password"],
+            database=config["database"]["name"],
             db_type=DatabaseType.MYSQL,
-            port=config["port"],
+            port=config["database"]["port"],
         )
-    elif config["type"] == "postgresql":
+    elif config["database"]["type"] == "postgresql":
         db = Database(
-            host=config["host"],
-            user=config["user"],
-            password=config["password"],
-            database=config["name"],
+            host=config["database"]["host"],
+            user=config["database"]["user"],
+            password=config["database"]["password"],
+            database=config["database"]["name"],
             db_type=DatabaseType.POSTGRESQL,
-            port=config["port"],
+            port=config["database"]["port"],
         )
     else:
         print("Invalid sql type in config.yml!")
