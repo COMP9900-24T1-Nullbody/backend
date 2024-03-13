@@ -56,21 +56,38 @@ class Database:
             return
 
         cursor = self.connection.cursor()
-        # Create users table if not exists
-        create_table_query = """
-        CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            email VARCHAR(255) NOT NULL UNIQUE,
-            password VARCHAR(255) NOT NULL,
-            google_id VARCHAR(255) UNIQUE,
-            microsoft_id VARCHAR(255) UNIQUE
-        )
-        """
         try:
-            cursor.execute(create_table_query)
-            print("Users table initialized")
+            with open("sql/initialize.sql", "r", encoding="utf-8") as sql_file:
+                sql_queries = sql_file.read()
+                cursor.execute(sql_queries)
+                print("Initialization completed")
         except (mysql.connector.Error, psycopg2.Error) as err:
             print(f"Error: {err}")
+        finally:
+            cursor.close()
 
-        cursor.close()
+
+    def query(self, query_str, params=None, fetchall_flag=True):
+        if not self.connection:
+            print("Error: Not connected to database")
+            return None
+
+        cursor = self.connection.cursor()
+        try:
+            if params:
+                cursor.execute(query_str, params)
+            else:
+                cursor.execute(query_str)
+            print("Query executed successfully")
+            if fetchall_flag:
+                return cursor.fetchall()
+            else:
+                return cursor.fetchone()
+        except (mysql.connector.Error, psycopg2.Error) as err:
+            print(f"Error: {err}")
+            return None
+        finally:
+            cursor.close()
+
+
+

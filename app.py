@@ -64,7 +64,7 @@ def login():
         user_info = decode_token(SECRET_KEY, token)
         if user_info:
             # 获取用户信息中的各个字段
-            user_id = user_info.get("id")
+            id = user_info.get("id")
             name = user_info.get("name")
             email = user_info.get("email")
             password = user_info.get("password")
@@ -72,20 +72,16 @@ def login():
             microsoft_id = user_info.get("microsoft_id")
 
             # 使用解码后的信息构建 SQL 查询语句
-            cursor = db.connection.cursor()
             query = "SELECT * FROM users WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
-            cursor.execute(
-                query, (user_id, name, email, password, google_id, microsoft_id)
-            )
-            user_info = cursor.fetchone()
-            cursor.close()
+            params = (id, name, email, password, google_id, microsoft_id)
+            user_info = db.query(query, params, True)
             if user_info:
                 # 如果查询到匹配的用户信息，生成新的 token 返回给客户端
-                token = generate_token(SECRET_KEY, user_info)
+                token = generate_token(SECRET_KEY, user_info[0])
                 return (
                     jsonify(
                         {
-                            "message": "Token detected. Auto-Login successfully",
+                            "message": "Token detected. Auto-Login successfully, Welcome!",
                             "token": token,
                         }
                     ),
@@ -97,14 +93,12 @@ def login():
             return jsonify({"error": "Invalid token"}), 400
     elif google_id:
         # 使用 Google ID 登录
-        cursor = db.connection.cursor()
         query = "SELECT * FROM users WHERE google_id = %s"
-        cursor.execute(query, (google_id,))
-        user_info = cursor.fetchone()
-        cursor.close()
+        params = (google_id,)
+        user_info = db.query(query, params, True)
         if user_info:
-            token = generate_token(SECRET_KEY, user_info)
-            return jsonify({"message": "Login successfully", "token": token}), 200
+            token = generate_token(SECRET_KEY, user_info[0])
+            return jsonify({"message": "Login successfully, Welcome!", "token": token}), 200
         else:
             return (
                 jsonify({"error": "Invalid Google ID or You haven't registered!"}),
@@ -112,14 +106,12 @@ def login():
             )
     elif microsoft_id:
         # 使用 Microsoft ID 登录
-        cursor = db.connection.cursor()
         query = "SELECT * FROM users WHERE microsoft_id = %s"
-        cursor.execute(query, (microsoft_id,))
-        user_info = cursor.fetchone()
-        cursor.close()
+        params = (microsoft_id,)
+        user_info = db.query(query, params, True)
         if user_info:
-            token = generate_token(SECRET_KEY, user_info)
-            return jsonify({"message": "Login successfully", "token": token}), 200
+            token = generate_token(SECRET_KEY, user_info[0])
+            return jsonify({"message": "Login successfully, Welcome!", "token": token}), 200
         else:
             return (
                 jsonify({"error": "Invalid Microsoft ID or You haven't registered!"}),
@@ -127,19 +119,19 @@ def login():
             )
     elif email and password:
         # 使用邮箱和密码登录
-        cursor = db.connection.cursor()
         query = "SELECT * FROM users WHERE email = %s AND password = %s"
-        cursor.execute(query, (email, password))
-        user_info = cursor.fetchone()
-        cursor.close()
-        if user_info and user_info["password"] == password:
-            token = generate_token(SECRET_KEY, user_info)
-            return jsonify({"message": "Login successfully", "token": token}), 200
+        params = (email, password)
+        user_info = db.query(query, params, True)
+        if len(user_info) > 1:
+            return jsonify({"error": "Multiple matched user_info found"}), 400
+        
+        if user_info:
+            token = generate_token(SECRET_KEY, user_info[0])
+            return jsonify({"message": "Login successfully, Welcome!", "token": token}), 200
         else:
-            return jsonify({"error": "Invalid email or password"}), 400
+            return jsonify({"error": "Invalid email or password, or You haven't registered!"}), 400
     else:
         return jsonify({"error": "Email and password or Google ID are required"}), 400
-
 
 @app.route("/register", methods=["POST"])
 @swag_from("api/register.yml")
@@ -172,51 +164,27 @@ def register():
         microsoft_id = ""
 
     # 检查 email 是否已被使用
-    cursor = db.connection.cursor()
-    check_query = "SELECT COUNT(*) FROM users WHERE email = %s"
-    cursor.execute(check_query, (email,))
-    count = cursor.fetchone()[0]
-    if count > 0:
-        cursor.close()
+    count = db.query("SELECT COUNT(*) FROM users WHERE email = %s", (email,), False)
+    if count[0] != 0:
         return jsonify({"error": "Email already exists"}), 400
 
     # 插入用户信息
-    if db.db_type == DatabaseType.POSTGRESQL:
-        insert_query = (
-            "INSERT INTO users (name, email, password, google_id, microsoft_id) "
-            "VALUES (%s, %s, %s, %s, %s) RETURNING id, name, email, google_id, microsoft_id"
-        )
+    insert_query = "INSERT INTO users (name, email, password, google_id, microsoft_id) VALUES (%s, %s, %s, %s, %s)"
+    params = (name, email, password, google_id, microsoft_id)
+    db.query(insert_query, params, False)
 
-        cursor.execute(insert_query, (name, email, password, google_id, microsoft_id))
-        # 提取插入的用户信息
-        user_info = cursor.fetchone()
-        db.connection.commit()
-        cursor.close()
-    elif db.db_type == DatabaseType.MYSQL:
-        insert_query = (
-            "INSERT INTO users (name, email, password, google_id, microsoft_id) "
-            "VALUES (%s, %s, %s, %s, %s)"
-        )
-        cursor.execute(insert_query, (name, email, password, google_id, microsoft_id))
-        user_id = cursor.lastrowid  # 获取最后插入的行的 ID
-
-        # 提交事务
-        db.connection.commit()
-
-        # 查询刚插入的用户信息
-        select_query = "SELECT * FROM users WHERE id = %s"
-        cursor.execute(select_query, (user_id,))
-        user_info = cursor.fetchone()
-
-        cursor.close()
+    # 查询刚插入的用户信息
+    select_query = "SELECT * FROM users WHERE name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
+    user_info = db.query(select_query, params, True)
+    print(user_info[0])
 
     # 生成 token
-    token = generate_token(SECRET_KEY, user_info)  # 用户 ID 是 user_info 的第一个元素
+    token = generate_token(SECRET_KEY, user_info[0])
 
     # 返回完整的用户信息和 token
     return (
         jsonify(
-            {"message": "Registered successfully", "user": user_info, "token": token}
+            {"message": "Registered successfully, Welcome!", "user": user_info, "token": token}
         ),
         200,
     )
