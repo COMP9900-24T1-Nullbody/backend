@@ -1,10 +1,19 @@
+import random
 from flask import Flask, jsonify, request
 from flasgger import Swagger, swag_from
 from flask_cors import CORS
 import yaml
 
-from utils.dataset import DatabaseType, Database
+from utils.smtp import SMTPManager
+from utils.dataset import REDIS, SQLType, SQL
 from utils.token import generate_token, decode_token
+
+
+import smtplib
+from email.mime.text import MIMEText
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime, timedelta
+import re
 
 app = Flask(__name__)
 CORS(app)
@@ -74,7 +83,7 @@ def login():
             # 使用解码后的信息构建 SQL 查询语句
             query = "SELECT * FROM users WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
             params = (id, name, email, password, google_id, microsoft_id)
-            user_info = db.query(query, params, True)
+            user_info = sql.query(query, params, True)
             if user_info:
                 # 如果查询到匹配的用户信息，生成新的 token 返回给客户端
                 token = generate_token(SECRET_KEY, user_info[0])
@@ -95,10 +104,13 @@ def login():
         # 使用 Google ID 登录
         query = "SELECT * FROM users WHERE google_id = %s"
         params = (google_id,)
-        user_info = db.query(query, params, True)
+        user_info = sql.query(query, params, True)
         if user_info:
             token = generate_token(SECRET_KEY, user_info[0])
-            return jsonify({"message": "Login successfully, Welcome!", "token": token}), 200
+            return (
+                jsonify({"message": "Login successfully, Welcome!", "token": token}),
+                200,
+            )
         else:
             return (
                 jsonify({"error": "Invalid Google ID or You haven't registered!"}),
@@ -108,10 +120,13 @@ def login():
         # 使用 Microsoft ID 登录
         query = "SELECT * FROM users WHERE microsoft_id = %s"
         params = (microsoft_id,)
-        user_info = db.query(query, params, True)
+        user_info = sql.query(query, params, True)
         if user_info:
             token = generate_token(SECRET_KEY, user_info[0])
-            return jsonify({"message": "Login successfully, Welcome!", "token": token}), 200
+            return (
+                jsonify({"message": "Login successfully, Welcome!", "token": token}),
+                200,
+            )
         else:
             return (
                 jsonify({"error": "Invalid Microsoft ID or You haven't registered!"}),
@@ -121,17 +136,26 @@ def login():
         # 使用邮箱和密码登录
         query = "SELECT * FROM users WHERE email = %s AND password = %s"
         params = (email, password)
-        user_info = db.query(query, params, True)
+        user_info = sql.query(query, params, True)
         if len(user_info) > 1:
             return jsonify({"error": "Multiple matched user_info found"}), 400
-        
+
         if user_info:
             token = generate_token(SECRET_KEY, user_info[0])
-            return jsonify({"message": "Login successfully, Welcome!", "token": token}), 200
+            return (
+                jsonify({"message": "Login successfully, Welcome!", "token": token}),
+                200,
+            )
         else:
-            return jsonify({"error": "Invalid email or password, or You haven't registered!"}), 400
+            return (
+                jsonify(
+                    {"error": "Invalid email or password, or You haven't registered!"}
+                ),
+                400,
+            )
     else:
         return jsonify({"error": "Email and password or Google ID are required"}), 400
+
 
 @app.route("/register", methods=["POST"])
 @swag_from("api/register.yml")
@@ -164,18 +188,18 @@ def register():
         microsoft_id = ""
 
     # 检查 email 是否已被使用
-    count = db.query("SELECT COUNT(*) FROM users WHERE email = %s", (email,), False)
+    count = sql.query("SELECT COUNT(*) FROM users WHERE email = %s", (email,), False)
     if count[0] != 0:
         return jsonify({"error": "Email already exists"}), 400
 
     # 插入用户信息
     insert_query = "INSERT INTO users (name, email, password, google_id, microsoft_id) VALUES (%s, %s, %s, %s, %s)"
     params = (name, email, password, google_id, microsoft_id)
-    db.query(insert_query, params, False)
+    sql.query(insert_query, params, False)
 
     # 查询刚插入的用户信息
     select_query = "SELECT * FROM users WHERE name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
-    user_info = db.query(select_query, params, True)
+    user_info = sql.query(select_query, params, True)
     print(user_info[0])
 
     # 生成 token
@@ -184,10 +208,93 @@ def register():
     # 返回完整的用户信息和 token
     return (
         jsonify(
-            {"message": "Registered successfully, Welcome!", "user": user_info, "token": token}
+            {
+                "message": "Registered successfully, Welcome!",
+                "user": user_info,
+                "token": token,
+            }
         ),
         200,
     )
+
+
+# 存储用户的验证码和过期时间
+user_codes = {}
+
+
+@app.route("/request_reset_password", methods=["POST"])
+@swag_from("api/request_reset_password.yml")
+def request_reset_password():
+    data = request.get_json()
+    email = data.get("email")
+
+    # 邮箱是否存在
+    if not email:
+        return jsonify({"error": "Email is required"}), 400
+
+    # 邮箱格式是否正确
+    if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+        return jsonify({"error": "Invalid email format"}), 400
+
+    cursor = sql.connection.cursor()
+    query = "SELECT * FROM users WHERE email = %s"
+    cursor.execute(query, (email,))
+    user = cursor.fetchone()
+    cursor.close()
+
+    if not user:
+        return jsonify({"error": "User not found"}), 400
+
+    # 生成随机验证码和过期时间
+    code = random.randint(100000, 999999)
+    expiry_time = datetime.now() + timedelta(minutes=10)  # 10分钟后过期
+    # user_codes[email] = {"code": code, "expiry_time": expiry_time}
+    redis.connection.set(email, code)
+    redis.connection.expire(email, 600)
+
+    # 发送验证码到用户邮箱
+    smtp.send_email(
+        email,
+        "Password Reset Verification Code",
+        f"Your verification code is {code}. It will expire in 10 minutes.",
+    )
+
+    return jsonify({"message": "Verification code sent to email"}), 200
+
+
+@app.route("/reset_password", methods=["POST"])
+@swag_from("api/reset_password.yml")
+def reset_password():
+    data = request.get_json()
+    email = data.get("email")
+    code = data.get("code")
+    new_password = data.get("new_password")
+
+    if not email or not code or not new_password:
+        return jsonify({"error": "Email, code, and new password are required"}), 400
+
+    # 从 Redis 中获取存储的验证码和过期时间
+    stored_code = int(redis.connection.get(email).decode())
+    print(stored_code, type(stored_code))
+    print(code, type(code))
+
+    # 检查验证码是否存在
+    if not stored_code:
+        return jsonify({"error": "Verification code not found or expired"}), 400
+
+    # 检查验证码是否匹配
+    if code != stored_code:
+        return jsonify({"error": "Invalid verification code"}), 400
+
+    # 删除 Redis 中的验证码
+    redis.connection.delete(email)
+
+    # 更新用户密码
+    sql.query(
+        "UPDATE users SET password = %s WHERE email = %s", (new_password, email), True
+    )
+
+    return jsonify({"message": "Password reset successfully"}), 200
 
 
 # helper function
@@ -202,37 +309,24 @@ if __name__ == "__main__":
     # Load dataset configuration
     config = load_config("config.yml")
 
+    sql_config = config["sql"]
+    redis_config = config["redis"]
+    smtp_config = config["smtp"]
+
     SECRET_KEY = config.get("secret_key")
 
     # Initialize database
-    db = None
-    if config["database"]["type"] == "mysql":
-        db = Database(
-            host=config["database"]["host"],
-            user=config["database"]["user"],
-            password=config["database"]["password"],
-            database=config["database"]["name"],
-            db_type=DatabaseType.MYSQL,
-            port=config["database"]["port"],
-        )
-    elif config["database"]["type"] == "postgresql":
-        db = Database(
-            host=config["database"]["host"],
-            user=config["database"]["user"],
-            password=config["database"]["password"],
-            database=config["database"]["name"],
-            db_type=DatabaseType.POSTGRESQL,
-            port=config["database"]["port"],
-        )
-    else:
-        print("Invalid sql type in config.yml!")
-        exit(1)
+    sql = SQL(sql_config)
+    redis = REDIS(redis_config)
+    smtp = SMTPManager(smtp_config)
 
     # Attempt to connect to the database
-    db.connect()
+    sql.connect()
+    redis.connect()
+    smtp.connect()
 
     # Initialize database tables
-    db.initialize()
+    sql.initialize()
 
     # Start Flask application
     app.run(debug=True)
