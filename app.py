@@ -236,21 +236,17 @@ def request_reset_password():
     if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
         return jsonify({"error": "Invalid email format"}), 400
 
-    cursor = sql.connection.cursor()
-    query = "SELECT * FROM users WHERE email = %s"
-    cursor.execute(query, (email,))
-    user = cursor.fetchone()
-    cursor.close()
+    # 查询用户是否存在
+    user = sql.query("SELECT * FROM users WHERE email = %s", (email,), False)
 
     if not user:
         return jsonify({"error": "User not found"}), 400
 
     # 生成随机验证码和过期时间
     code = random.randint(100000, 999999)
-    expiry_time = datetime.now() + timedelta(minutes=10)  # 10分钟后过期
-    # user_codes[email] = {"code": code, "expiry_time": expiry_time}
+
     redis.connection.set(email, code)
-    redis.connection.expire(email, 600)
+    redis.connection.expire(email, 600)  # 10分钟后过期
 
     # 发送验证码到用户邮箱
     smtp.send_email(
@@ -259,7 +255,7 @@ def request_reset_password():
         f"Your verification code is {code}. It will expire in 10 minutes.",
     )
 
-    return jsonify({"message": "Verification code sent to email"}), 200
+    return jsonify({"message": "Verification code sent successfully!"}), 200
 
 
 @app.route("/reset_password", methods=["POST"])
