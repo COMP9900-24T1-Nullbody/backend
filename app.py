@@ -5,14 +5,9 @@ from flask_cors import CORS
 import yaml
 
 from utils.smtp import SMTPManager
-from utils.dataset import REDIS, SQLType, SQL
+from utils.dataset import REDIS, SQL
 from utils.token import generate_token, decode_token
 
-
-import smtplib
-from email.mime.text import MIMEText
-from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
 import re
 
 app = Flask(__name__)
@@ -324,7 +319,6 @@ if __name__ == "__main__":
     # Attempt to connect to the database
     sql.connect()
     redis.connect()
-    smtp.connect()
 
     # Initialize database tables
     sql.initialize()
