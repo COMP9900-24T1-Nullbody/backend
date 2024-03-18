@@ -294,7 +294,10 @@ def upload_avatar():
     image_data = data.get("image")
     token = data.get("token")
     
-    new_avatar_url = picbed.upload(image_data, "name", "avatar")
+    try:
+        new_avatar_url = picbed.upload(image_data, "name", "avatar")
+    except:
+        return jsonify({"error": "Upload to Imgur picbed failed."}), 400
     user_info = decode_token(SECRET_KEY, token)
 
     if user_info:
