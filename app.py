@@ -4,6 +4,7 @@ from flasgger import Swagger, swag_from
 from flask_cors import CORS
 import yaml
 
+from utils.picbed import ImgurUploader
 from utils.smtp import SMTPManager
 from utils.dataset import REDIS, SQL
 from utils.token import generate_token, decode_token
@@ -78,10 +79,10 @@ def login():
             # 使用解码后的信息构建 SQL 查询语句
             query = "SELECT * FROM users WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
             params = (id, name, email, password, google_id, microsoft_id)
-            user_info = sql.query(query, params, True)
+            user_info = sql.query(query, params, True)[0]
             if user_info:
                 # 如果查询到匹配的用户信息，生成新的 token 返回给客户端
-                token = generate_token(SECRET_KEY, user_info[0])
+                token = generate_token(SECRET_KEY, user_info)
                 return (
                     jsonify(
                         {
@@ -99,9 +100,9 @@ def login():
         # 使用 Google ID 登录
         query = "SELECT * FROM users WHERE google_id = %s"
         params = (google_id,)
-        user_info = sql.query(query, params, True)
+        user_info = sql.query(query, params, True)[0]
         if user_info:
-            token = generate_token(SECRET_KEY, user_info[0])
+            token = generate_token(SECRET_KEY, user_info)
             return (
                 jsonify({"message": "Login successfully, Welcome!", "token": token}),
                 200,
@@ -115,9 +116,9 @@ def login():
         # 使用 Microsoft ID 登录
         query = "SELECT * FROM users WHERE microsoft_id = %s"
         params = (microsoft_id,)
-        user_info = sql.query(query, params, True)
+        user_info = sql.query(query, params, True)[0]
         if user_info:
-            token = generate_token(SECRET_KEY, user_info[0])
+            token = generate_token(SECRET_KEY, user_info)
             return (
                 jsonify({"message": "Login successfully, Welcome!", "token": token}),
                 200,
@@ -131,12 +132,12 @@ def login():
         # 使用邮箱和密码登录
         query = "SELECT * FROM users WHERE email = %s AND password = %s"
         params = (email, password)
-        user_info = sql.query(query, params, True)
+        user_info = sql.query(query, params, True)[0]
         if len(user_info) > 1:
             return jsonify({"error": "Multiple matched user_info found"}), 400
 
         if user_info:
-            token = generate_token(SECRET_KEY, user_info[0])
+            token = generate_token(SECRET_KEY, user_info)
             return (
                 jsonify({"message": "Login successfully, Welcome!", "token": token}),
                 200,
@@ -183,22 +184,21 @@ def register():
         microsoft_id = ""
 
     # 检查 email 是否已被使用
-    count = sql.query("SELECT COUNT(*) FROM users WHERE email = %s", (email,), False)
-    if count[0] != 0:
+    count = sql.query("SELECT COUNT(*) FROM users WHERE email = %s", (email,), False)[0]
+    if count != 0:
         return jsonify({"error": "Email already exists"}), 400
 
     # 插入用户信息
-    insert_query = "INSERT INTO users (name, email, password, google_id, microsoft_id) VALUES (%s, %s, %s, %s, %s)"
-    params = (name, email, password, google_id, microsoft_id)
+    insert_query = "INSERT INTO users (name, email, password, google_id, microsoft_id, avatar_url) VALUES (%s, %s, %s, %s, %s)"
+    params = (name, email, password, google_id, microsoft_id, "https://i.imgur.com/pbMbyHp.jpg") # 默认头像
     sql.query(insert_query, params, False)
 
     # 查询刚插入的用户信息
     select_query = "SELECT * FROM users WHERE name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
-    user_info = sql.query(select_query, params, True)
-    print(user_info[0])
+    user_info = sql.query(select_query, params, True)[0]
 
     # 生成 token
-    token = generate_token(SECRET_KEY, user_info[0])
+    token = generate_token(SECRET_KEY, user_info)
 
     # 返回完整的用户信息和 token
     return (
@@ -288,6 +288,51 @@ def reset_password():
     return jsonify({"message": "Password reset successfully"}), 200
 
 
+@app.route("/upload_avatar", methods=["POST"])
+def upload_avatar():
+    data = request.get_json()
+    image_data = data.get("image")
+    token = data.get("token")
+    
+    new_avatar_url = picbed.upload(image_data, "name", "avatar")
+    user_info = decode_token(SECRET_KEY, token)
+
+    if user_info:
+        # 获取用户信息中的各个字段
+        id = user_info.get("id")
+        name = user_info.get("name")
+        email = user_info.get("email")
+        password = user_info.get("password")
+        google_id = user_info.get("google_id")
+        microsoft_id = user_info.get("microsoft_id")
+
+        # 使用解码后的信息构建 SQL 查询语句
+        query = "SELECT * FROM users WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
+        params = (id, name, email, password, google_id, microsoft_id)
+        user_info = sql.query(query, params, True)[0]
+        if user_info:
+            # 如果查询到匹配的用户信息，更新对应的头像URL，并生成新的 token 返回给客户端
+            update_query = "UPDATE users SET avatar_url = %s WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s;"
+            params = (new_avatar_url, id, name, email, password, google_id, microsoft_id)
+            sql.query(update_query, params, True)
+            
+            user_info = (id, name, email, password, google_id, microsoft_id, new_avatar_url)
+            token = generate_token(SECRET_KEY, user_info)
+            return (
+                jsonify(
+                    {
+                        "message": "Avatar upload successfully!",
+                        "token": token,
+                    }
+                ),
+                200,
+            )
+        else:
+            return jsonify({"error": "Token info miss matched!"}), 400
+    
+    return jsonify({"message": "Image upload successfully"}), 200
+
+
 # helper function
 # Load database configuration from YAML file
 def load_config(filename):
@@ -308,6 +353,7 @@ if __name__ == "__main__":
     sql_config = config["sql"]
     redis_config = config["redis"]
     smtp_config = config["smtp"]
+    picbed_config = config["imgur"]
 
     SECRET_KEY = config.get("secret_key")
 
@@ -315,6 +361,7 @@ if __name__ == "__main__":
     sql = SQL(sql_config)
     redis = REDIS(redis_config)
     smtp = SMTPManager(smtp_config)
+    picbed = ImgurUploader(picbed_config)
 
     # Attempt to connect to the database
     sql.connect()
