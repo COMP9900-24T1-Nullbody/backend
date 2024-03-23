@@ -8,8 +8,8 @@ smtp:
 
 redis:
   host: singapore-redis.render.com
-  user: red-cnnh3udjm4es7395e4vg
-  password: 747IVoMENPI29aHHkEQZChywvVwfelR3
+  user: red-cnv2mdta73kc73c71edg
+  password: RipqoV8JcQFb02mPNORnHQwt2rN8dqaf
   port: 6379
 
 imgur:
@@ -38,16 +38,16 @@ sql:
 
   # # Render - postgresql - external
   # type: postgresql
-  # host: dpg-cnfh5cta73kc73936pu0-a.singapore-postgres.render.com
-  # user: yst990102
-  # password: uIndhibQMr94jnGtIDj3Dw7fQpFA5aSD
-  # name: comp9900
+  # host: dpg-cnv2mnen7f5s7393kj60-a.singapore-postgres.render.com
+  # user: comp9900_nullbody
+  # password: oTrGD34kbdYRtpQUTf73EH7BVnukU8m2
+  # name: comp9900_nullbody
   # port: 5432
 
   # # Render - postgresql - internal
   # type: postgresql
-  # host: dpg-cnfh5cta73kc73936pu0-a
-  # user: yst990102
-  # password: uIndhibQMr94jnGtIDj3Dw7fQpFA5aSD
-  # name: comp9900
+  # host: dpg-cnv2mnen7f5s7393kj60-a
+  # user: comp9900_nullbody
+  # password: oTrGD34kbdYRtpQUTf73EH7BVnukU8m2
+  # name: comp9900_nullbody
   # port: 5432
