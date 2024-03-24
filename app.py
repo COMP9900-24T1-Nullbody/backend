@@ -213,10 +213,6 @@ def register():
     )
 
 
-# 存储用户的验证码和过期时间
-user_codes = {}
-
-
 @app.route("/request_reset_password", methods=["POST"])
 @swag_from("api/request_reset_password.yml")
 def request_reset_password():
