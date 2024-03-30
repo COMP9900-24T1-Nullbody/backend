@@ -10,6 +10,8 @@ from utils.dataset import REDIS, SQL
 from utils.token import generate_token, decode_token
 
 import re
+import os
+import csv
 
 app = Flask(__name__)
 CORS(app)
@@ -289,6 +291,7 @@ def reset_password():
 
 
 @app.route("/update_userinfo", methods=["POST"])
+@swag_from("api/update_userinfo.yml")
 def update_userinfo():
     data = request.get_json()
     token = data.get("token")
@@ -381,6 +384,7 @@ def upload_avatar():
 
 
 @app.route("/company/info", methods=["POST"])
+@swag_from("api/company_info.yml")
 def company_info():
     data = request.get_json()
 
@@ -391,11 +395,11 @@ def company_info():
         return jsonify({"error": "Company name or framework name are required"}), 400
     
     # 从数据库中获取公司信息/评分从data.py中获取/csv信息先存进新表
-    query = "SELECT * FROM company WHERE company_name = %s AND framework_name = %s"
-    params = (company_name, framework_name)
+    query = "SELECT * FROM company WHERE company_name = %s"
+    params = (company_name)
     company_info = sql.query(query, params, True)[0]
     if company_info:
-    
+        
 
 
 
@@ -440,6 +444,36 @@ if __name__ == "__main__":
 
     # Initialize database tables
     sql.initialize()
+    #在这里导入数据表里面的内容
+
+
+    # Get the path to the data folder
+    data_folder = os.path.join(os.path.dirname(__file__), "data")
+
+    # Iterate over all CSV files in the data folder
+    for filename in os.listdir(data_folder):
+        if filename.endswith(".csv"):
+            file_path = os.path.join(data_folder, filename)
+            
+            # Open the CSV file
+            with open(file_path, "r") as csv_file:
+                csv_reader = csv.DictReader(csv_file)
+                
+                # Iterate over each row in the CSV file
+                for row in csv_reader:
+                    company_name = row["company_name"]
+                    metric_name = row["metric_name"]
+                    metric_value = row["metric_value"]
+                    metric_description = row["metric_description"]
+                    indicator = row["pillar"]
+                    metric_unit = row["metric_unit"]
+                    # Do something with the company_name, metric_name, and metric_value
+                    # For example, insert them into the database
+                    
+                    # Insert the data into the database
+                    query = "INSERT INTO company_info (company_name, metric_name, metric_value, metric_description,indicator,metric_unit) VALUES (%s, %s, %s, %s, %s, %s)"
+                    params = (company_name, metric_name, metric_value,metric_description,indicator)
+                    sql.query(query, params, True)
 
     # Start Flask application
     app.run(host="0.0.0.0", port=5000, debug=True)

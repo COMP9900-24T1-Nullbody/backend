@@ -22,3 +22,14 @@ CREATE UNIQUE INDEX idx_unique_microsoft_id ON users (microsoft_id) WHERE micros
 INSERT INTO users (name, email, password, google_id, microsoft_id, avatar_url) VALUES ('袁师童（Shi Tong Yuan）', 'shitong.yuan990102@gmail.com', '', '107976341541554913891', '', 'https://i.imgur.com/pbMbyHp.jpeg');
 INSERT INTO users (name, email, password, google_id, microsoft_id, avatar_url) VALUES ('test123', 'test123@email.com', 'testtest', '', '', 'https://i.imgur.com/pbMbyHp.jpeg');
 
+-- 创建公司信息表，导入公司信息
+DROP TABLE IF EXISTS company_info;
+CREATE TABLE company_info (
+    company_name VARCHAR(255) PRIMARY KEY,
+    metric_name VARCHAR(255) secondary KEY,
+    metric_value VARCHAR(255) NOT NULL,
+    metric_description VARCHAR(255) NOT NULL,
+    indicator VARCHAR(255) NOT NULL,
+    metric_unit VARCHAR(255) NOT NULL
+);
+

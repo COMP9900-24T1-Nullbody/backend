@@ -1,0 +1,47 @@
+parameters:
+  - name: UpdateUserInfo
+    in: body
+    required: true
+    schema:
+      type: object
+      properties:
+        id:
+          type: string
+          example: test
+        name:
+          type: string
+          example: test
+        name:
+          type: string
+          example: test
+        email:
+          type: string
+          example: test@test.com
+        password:
+          type: string
+          example: testtest
+        google_id:
+          type: string
+          example: testtest
+        microsoft_id:
+          type: string
+          example: testtest
+
+
+responses:
+  200:
+    description: Successful Updated
+    schema:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Info update successfully
+  400:
+    description: Bad request
+    schema:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Invalid data format#
