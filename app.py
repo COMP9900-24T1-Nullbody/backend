@@ -1,12 +1,16 @@
-from flask import Flask, jsonify, request, redirect
+import random
+from flask import Flask, jsonify, redirect, request
 from flasgger import Swagger, swag_from
 from flask_cors import CORS
-from dataset import DatabaseType, load_config, Database
-import random
-import smtplib
-from email.mime.text import MIMEText
-from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime, timedelta
+import yaml
+
+from utils.picbed import ImgurUploader
+from utils.smtp import SMTPManager
+from utils.dataset import REDIS, SQL
+from utils.token import generate_token, decode_token
+
+
+
 import re
 
 app = Flask(__name__)
@@ -52,8 +56,6 @@ def colors(palette):
 
 
 # ===============================================================
-
-
 @app.route("/login", methods=["POST"])
 @swag_from("api/login.yml")
 def login():
@@ -62,42 +64,93 @@ def login():
     password = data.get("password")
     google_id = data.get("google_id")
     microsoft_id = data.get("microsoft_id")
+    token = data.get("token")
 
-    if google_id:
-        # 使用 Google ID 登录
-        cursor = db.connection.cursor()
-        query = "SELECT * FROM users WHERE google_id = %s"
-        cursor.execute(query, (google_id,))
-        user = cursor.fetchone()
-        cursor.close()
-        if user:
-            return jsonify({"message": "Login successfully"}), 200
+    if token:
+        # 解码 token 获取用户信息
+        user_info = decode_token(SECRET_KEY, token)
+        if user_info:
+            # 获取用户信息中的各个字段
+            id = user_info.get("id")
+            name = user_info.get("name")
+            email = user_info.get("email")
+            password = user_info.get("password")
+            google_id = user_info.get("google_id")
+            microsoft_id = user_info.get("microsoft_id")
+
+            # 使用解码后的信息构建 SQL 查询语句
+            query = "SELECT * FROM users WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
+            params = (id, name, email, password, google_id, microsoft_id)
+            user_info = sql.query(query, params, True)[0]
+            if user_info:
+                # 如果查询到匹配的用户信息，生成新的 token 返回给客户端
+                token = generate_token(SECRET_KEY, user_info)
+                return (
+                    jsonify(
+                        {
+                            "message": "Token detected. Auto-Login successfully, Welcome!",
+                            "token": token,
+                        }
+                    ),
+                    200,
+                )
+            else:
+                return jsonify({"error": "Token info miss matched!"}), 400
         else:
-            return jsonify({"error": "Invalid Google ID"}), 400
+            return jsonify({"error": "Invalid token"}), 400
+    elif google_id:
+        # 使用 Google ID 登录
+        query = "SELECT * FROM users WHERE google_id = %s"
+        params = (google_id,)
+        user_info = sql.query(query, params, True)[0]
+        if user_info:
+            token = generate_token(SECRET_KEY, user_info)
+            return (
+                jsonify({"message": "Login successfully, Welcome!", "token": token}),
+                200,
+            )
+        else:
+            return (
+                jsonify({"error": "Invalid Google ID or You haven't registered!"}),
+                400,
+            )
     elif microsoft_id:
         # 使用 Microsoft ID 登录
-        cursor = db.connection.cursor()
         query = "SELECT * FROM users WHERE microsoft_id = %s"
-        cursor.execute(query, (microsoft_id,))
-        user = cursor.fetchone()
-        cursor.close()
-        if user:
-            return jsonify({"message": "Login successfully"}), 200
+        params = (microsoft_id,)
+        user_info = sql.query(query, params, True)[0]
+        if user_info:
+            token = generate_token(SECRET_KEY, user_info)
+            return (
+                jsonify({"message": "Login successfully, Welcome!", "token": token}),
+                200,
+            )
         else:
-            return jsonify({"error": "Invalid Microsoft ID"}), 400
+            return (
+                jsonify({"error": "Invalid Microsoft ID or You haven't registered!"}),
+                400,
+            )
     elif email and password:
         # 使用邮箱和密码登录
-        # cursor = db.connection.cursor(dictionary=True)
-        cursor = db.connection.cursor()
-        query = "SELECT * FROM users WHERE email = %s"
-        cursor.execute(query, (email,))
-        user = cursor.fetchone() #fetch出来的是一个tuple
-        # print("=================================",user)#(1, '
-        cursor.close()
-        if user and user[3] == password:
-            return jsonify({"message": "Login successfully"}), 200
+        query = "SELECT * FROM users WHERE email = %s AND password = %s"
+        params = (email, password)
+        user_info = sql.query(query, params, True)[0]
+        if len(user_info) > 1:
+            return jsonify({"error": "Multiple matched user_info found"}), 400
+
+        if user_info:
+            token = generate_token(SECRET_KEY, user_info)
+            return (
+                jsonify({"message": "Login successfully, Welcome!", "token": token}),
+                200,
+            )
         else:
-            return jsonify({"error": "Invalid email or password"}), 400
+            return (
+                jsonify(
+                    {"error": "Invalid email or password, or You haven't registered!"}
+                ),
+                400,
+            )
     else:
         return jsonify({"error": "Email and password or Google ID are required"}), 400
 
@@ -111,47 +164,60 @@ def register():
     password = data.get("password")
     google_id = data.get("google_id")
     microsoft_id = data.get("microsoft_id")
+    token = data.get("token")
 
     if google_id:
         # 如果使用谷歌账户注册，确保传递了必要的字段
         if not name or not email or not google_id:
             return jsonify({"error": "Name, email, and google_id are required"}), 400
-        password = "" 
+        password = ""
         microsoft_id = ""
     elif microsoft_id:
         # 如果使用微软账户注册，确保传递了必要的字段
         if not name or not email or not microsoft_id:
             return jsonify({"error": "Name, email, and microsoft_id are required"}), 400
-        password = "" 
+        password = ""
         google_id = ""
     else:
         # 如果不是使用谷歌账户注册，确保传递了必要的字段
         if not name or not email or not password:
             return jsonify({"error": "Name, email, and password are required"}), 400
-        google_id = "" 
+        google_id = ""
         microsoft_id = ""
 
-    cursor = db.connection.cursor()
-    check_query = "SELECT COUNT(*) FROM users WHERE email = %s"
-    cursor.execute(check_query, (email,))
-    count = cursor.fetchone()[0]
-    if count > 0:
-        cursor.close()
+    # 检查 email 是否已被使用
+    count = sql.query("SELECT COUNT(*) FROM users WHERE email = %s", (email,), False)[0]
+    if count != 0:
         return jsonify({"error": "Email already exists"}), 400
 
-    insert_query = (
-        "INSERT INTO users (name, email, password, google_id, microsoft_id) VALUES (%s, %s, %s, %s, %s)"
-    )
-    cursor.execute(insert_query, (name, email, password, google_id, microsoft_id))
-    db.connection.commit()
-    cursor.close()
-    print(f"注册成功！{data}")
-    return jsonify({"message": "Registered successfully"}), 200
+    # 插入用户信息
+    insert_query = "INSERT INTO users (name, email, password, google_id, microsoft_id, avatar_url) VALUES (%s, %s, %s, %s, %s)"
+    params = (name, email, password, google_id, microsoft_id, "https://i.imgur.com/pbMbyHp.jpg") # 默认头像
+    sql.query(insert_query, params, False)
 
+    # 查询刚插入的用户信息
+    select_query = "SELECT * FROM users WHERE name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
+    user_info = sql.query(select_query, params, True)[0]
+
+    # 生成 token
+    token = generate_token(SECRET_KEY, user_info)
+
+    # 返回完整的用户信息和 token
+    return (
+        jsonify(
+            {
+                "message": "Registered successfully, Welcome!",
+                "user": user_info,
+                "token": token,
+            }
+        ),
+        200,
+    )
 
 
 # 存储用户的验证码和过期时间
 user_codes = {}
+
 
 @app.route("/request_reset_password", methods=["POST"])
 @swag_from("api/request_reset_password.yml")
@@ -162,39 +228,32 @@ def request_reset_password():
     # 邮箱是否存在
     if not email:
         return jsonify({"error": "Email is required"}), 400
-    
+
     # 邮箱格式是否正确
     if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
         return jsonify({"error": "Invalid email format"}), 400
 
-    cursor = db.connection.cursor()
-    query = "SELECT * FROM users WHERE email = %s"
-    cursor.execute(query, (email,))
-    user = cursor.fetchone()
-    cursor.close()
+    # 查询用户是否存在
+    user = sql.query("SELECT * FROM users WHERE email = %s", (email,), False)
 
     if not user:
         return jsonify({"error": "User not found"}), 400
 
     # 生成随机验证码和过期时间
     code = random.randint(100000, 999999)
-    expiry_time = datetime.now() + timedelta(minutes=10)  # 10分钟后过期
-    user_codes[email] = {"code": code, "expiry_time": expiry_time}
-    # print("==========user_codes================",user_codes)
+
+    redis.connection.set(email, code)
+    redis.connection.expire(email, 600)  # 10分钟后过期
 
     # 发送验证码到用户邮箱
-    msg = MIMEText(f"Your verification code is {code}. It will expire in 10 minutes.")
-    msg['Subject'] = 'Password Reset Verification Code'
-    msg['From'] = 'noreply.comp9900nullbody@gmail.com'  # Replace with your email address
-    msg['To'] = email
+    smtp.send_email(
+        email,
+        "Password Reset Verification Code",
+        f"Your verification code is {code}. It will expire in 10 minutes.",
+    )
 
-    s = smtplib.SMTP('smtp.gmail.com', 587)
-    s.starttls()
-    s.login('noreply.comp9900nullbody@gmail.com', 'wgeuoicxihvgwfeh')
-    s.send_message(msg)
-    s.quit()
+    return jsonify({"message": "Verification code sent successfully!"}), 200
 
-    return jsonify({"message": "Verification code sent to email"}), 200
 
 @app.route("/reset_password", methods=["POST"])
 @swag_from("api/reset_password.yml")
@@ -203,29 +262,148 @@ def reset_password():
     email = data.get("email")
     code = data.get("code")
     new_password = data.get("new_password")
-    # print("==========data================",data)
 
     if not email or not code or not new_password:
         return jsonify({"error": "Email, code, and new password are required"}), 400
-    
-    # print("==========user_codes================",user_codes)
-    if datetime.now() > user_codes[email]["expiry_time"]:
-        return jsonify({"error": "Verification code expired"}), 400
 
-    if user_codes[email]["code"] != code:
+    # 从 Redis 中获取存储的验证码和过期时间
+    stored_code = int(redis.connection.get(email).decode())
+    print(stored_code, type(stored_code))
+    print(code, type(code))
+
+    # 检查验证码是否存在
+    if not stored_code:
+        return jsonify({"error": "Verification code not found or expired"}), 400
+
+    # 检查验证码是否匹配
+    if code != stored_code:
         return jsonify({"error": "Invalid verification code"}), 400
 
-    cursor = db.connection.cursor()
-    hashed_password = generate_password_hash(new_password)
-    update_query = "UPDATE users SET password = %s WHERE email = %s"
-    cursor.execute(update_query, (hashed_password, email))
-    db.connection.commit()
-    cursor.close()
+    # 删除 Redis 中的验证码
+    redis.connection.delete(email)
 
-    # 删除验证码
-    del user_codes[email]
+    # 更新用户密码
+    sql.query(
+        "UPDATE users SET password = %s WHERE email = %s", (new_password, email), True
+    )
 
     return jsonify({"message": "Password reset successfully"}), 200
+
+
+@app.route("/update_userinfo", methods=["POST"])
+def update_userinfo():
+    data = request.get_json()
+    token = data.get("token")
+    user_info = decode_token(SECRET_KEY, token)
+
+    if user_info:
+        # 获取用户更新信息中的各个字段
+        id = user_info.get("id")
+        name = user_info.get("name")
+        email = user_info.get("email")
+        password = user_info.get("password")
+        google_id = user_info.get("google_id")
+        microsoft_id = user_info.get("microsoft_id")
+
+        # 使用解码后的信息构建 SQL 查询语句
+        query = "SELECT * FROM users WHERE id = %s"
+        params = (id)
+        old_info = sql.query(query, params, True)[0]
+        if old_info:#如果有老用户信息，更新对应的用户信息，生成新的 token 返回给客户端
+            update_query = "UPDATE users WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s;"
+            params = (id, name, email, password, google_id, microsoft_id)
+            sql.query(update_query, params, True)
+            user_info = (id, name, email, password, google_id, microsoft_id)
+            token = generate_token(SECRET_KEY, user_info)
+            return (
+                jsonify(
+                    {
+                        "message": "info update successfully!",
+                        "token": token,
+                    }
+                ),
+                200,
+            )
+        else:
+            return jsonify({"error": "Token info miss matched!"}), 400
+    
+    return jsonify({"message": "info updated successfully"}), 200
+
+
+
+
+
+
+@app.route("/upload_avatar", methods=["POST"])
+def upload_avatar():
+    data = request.get_json()
+    image_data = data.get("image")
+    token = data.get("token")
+    
+    try:
+        new_avatar_url = picbed.upload(image_data, "name", "avatar")
+    except:
+        return jsonify({"error": "Upload to Imgur picbed failed."}), 400
+    user_info = decode_token(SECRET_KEY, token)
+
+    if user_info:
+        # 获取用户信息中的各个字段
+        id = user_info.get("id")
+        name = user_info.get("name")
+        email = user_info.get("email")
+        password = user_info.get("password")
+        google_id = user_info.get("google_id")
+        microsoft_id = user_info.get("microsoft_id")
+
+        # 使用解码后的信息构建 SQL 查询语句
+        query = "SELECT * FROM users WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
+        params = (id, name, email, password, google_id, microsoft_id)
+        user_info = sql.query(query, params, True)[0]
+        if user_info:
+            # 如果查询到匹配的用户信息，更新对应的头像URL，并生成新的 token 返回给客户端
+            update_query = "UPDATE users SET avatar_url = %s WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s;"
+            params = (new_avatar_url, id, name, email, password, google_id, microsoft_id)
+            sql.query(update_query, params, True)
+            
+            user_info = (id, name, email, password, google_id, microsoft_id, new_avatar_url)
+            token = generate_token(SECRET_KEY, user_info)
+            return (
+                jsonify(
+                    {
+                        "message": "Avatar upload successfully!",
+                        "token": token,
+                    }
+                ),
+                200,
+            )
+        else:
+            return jsonify({"error": "Token info miss matched!"}), 400
+    
+    return jsonify({"message": "Image upload successfully"}), 200
+
+
+@app.route("/company/info", methods=["POST"])
+def company_info():
+    data = request.get_json()
+
+    if company_info:
+        company_name=data.get("company_name")
+        framework_name=data.get("frame_work_name")
+    
+
+
+
+
+
+
+
+
+# helper function
+# Load database configuration from YAML file
+def load_config(filename):
+    with open(filename, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+    return config
 
 
 @app.route('/')
@@ -237,35 +415,25 @@ if __name__ == "__main__":
     # Load dataset configuration
     config = load_config("config.yml")
 
+    sql_config = config["sql"]
+    redis_config = config["redis"]
+    smtp_config = config["smtp"]
+    picbed_config = config["imgur"]
+
+    SECRET_KEY = config.get("secret_key")
+
     # Initialize database
-    db = None
-    if config["type"] == "mysql":
-        db = Database(
-            host=config["host"],
-            user=config["user"],
-            password=config["password"],
-            database=config["name"],
-            db_type=DatabaseType.MYSQL,
-            port=config["port"],
-        )
-    elif config["type"] == "postgresql":
-        db = Database(
-            host=config["host"],
-            user=config["user"],
-            password=config["password"],
-            database=config["name"],
-            db_type=DatabaseType.POSTGRESQL,
-            port=config["port"],
-        )
-    else:
-        print("Invalid sql type in config.yml!")
-        exit(1)
+    sql = SQL(sql_config)
+    redis = REDIS(redis_config)
+    smtp = SMTPManager(smtp_config)
+    picbed = ImgurUploader(picbed_config)
 
     # Attempt to connect to the database
-    db.connect()
+    sql.connect()
+    redis.connect()
 
     # Initialize database tables
-    db.initialize()
+    sql.initialize()
 
     # Start Flask application
     app.run(host="0.0.0.0", port=5000, debug=True)
