@@ -1,7 +1,5 @@
 import random
 from flask import Flask, jsonify, redirect, request
-import random
-from flask import Flask, jsonify, redirect, request
 from flasgger import Swagger, swag_from
 from flask_cors import CORS
 import yaml
@@ -10,8 +8,6 @@ from utils.picbed import ImgurUploader
 from utils.smtp import SMTPManager
 from utils.dataset import REDIS, SQL
 from utils.token import generate_token, decode_token
-
-
 
 import re
 

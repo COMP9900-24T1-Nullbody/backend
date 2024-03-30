@@ -1,0 +1,20 @@
+Percentage Data: 415,953 entries
+Percentage Growth in Number of Employees Over Last Year: 3 entries
+Cubic Meters: 19,915 entries
+Gigajoules (GJ): 30,351 entries
+Hours per Employee: 9,804 entries
+Injured per Million Hours: 10,496 entries
+Non-Audit USD per Audit USD: 2,088 entries
+Number of Days: 4,820 entries
+Number of Fatalities: 16,361 entries
+Ratio Data: 3,963 entries
+Tons: 45,018 entries
+Tons of CO2: 2 entries
+Tons of CO2e: 50,180 entries
+Tons of NOx: 5,062 entries
+Tons of SOx: 4,872 entries
+Tons of VOC: 2,307 entries
+USD: 8,256 entries
+USD (000): 1 entry
+USD Donated per Million of Revenue USD: 4,084 entries
+Yes/No Data: 753,976 entries
