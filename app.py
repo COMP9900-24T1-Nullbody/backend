@@ -391,6 +391,14 @@ def company_info():
     if company_info:
         company_name=data.get("company_name")
         framework_name=data.get("frame_work_name")
+    else:
+        return jsonify({"error": "Company name or framework name are required"}), 400
+    
+    # 从数据库中获取公司信息/评分从data.py中获取/csv信息先存进新表
+    query = "SELECT * FROM company WHERE company_name = %s AND framework_name = %s"
+    params = (company_name, framework_name)
+    company_info = sql.query(query, params, True)[0]
+    if company_info:
     
 
 
