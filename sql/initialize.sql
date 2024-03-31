@@ -31,7 +31,7 @@ DROP TABLE IF EXISTS company_info;--直接插入数据
 CREATE TABLE company_info (
     perm_id  VARCHAR(255) PRIMARY KEY,
     company_name VARCHAR(255) NOT NULL,
-    metric_year VARCHAR(255) NOT NULL，
+    metric_year VARCHAR(255) NOT NULL
 );
 
 
@@ -41,8 +41,9 @@ CREATE TABLE metrics_duplicated_info (
     metric_name VARCHAR(255) NOT NULL,
     metric_description VARCHAR(255) NOT NULL,
     metric_unit VARCHAR(255) NOT NULL,
-    indicator VARCHAR(255) NOT NULL,-- #pillar in the csv
-    headquarter_country VARCHAR(255) NOT NULL,
+    indicator VARCHAR(255) NOT NULL,--# 匹配一下indicator
+    pillar VARCHAR(255) NOT NULL,-- #pillar in the csv
+    headquarter_country VARCHAR(255) NOT NULL
 );
 
 DROP TABLE IF EXISTS metrics_value;

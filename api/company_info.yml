@@ -1,0 +1,13 @@
+parameters:
+  - name: company_info
+    in: body
+    required: true
+    schema:
+      type: object
+      properties:
+        company_name:
+          type: string
+          example: test@test.com
+        # framework_name:
+        #   type: string
+        #   example: testtest

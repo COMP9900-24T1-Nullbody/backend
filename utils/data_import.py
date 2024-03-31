@@ -1,9 +1,8 @@
-
 import os
-from sql import SQL
 import csv
 import pandas as pd
 import yaml
+from utils.dataset import SQL
 
 # Load database configuration from YAML file
 def load_config(filename):
@@ -19,7 +18,7 @@ sql.connect()
 def import_data():
     metric_name_dict ={}
     # Get the path to the data folder
-    data_folder = os.path.join(os.path.dirname(__file__), "data")
+    data_folder = os.path.join(os.path.dirname(__file__), "..", "data")
 
     # Iterate over all CSV files in the data folder
     for filename in os.listdir(data_folder):
@@ -36,8 +35,10 @@ def import_data():
                 # Check if the metric_name is in metric_name_dict
                 if metric_name not in metric_name_dict:
                     # Add the metric_name to metric_name_dict and assign an incremental value
-                    metric_name_dict[metric_name] = str(len(metric_name_dict))
-                
+                    metric_id = len(metric_name_dict)+1
+                    metric_name_dict[metric_name] = metric_id
+                    df.at[index, "metric_id"] = metric_id
+                    continue               
                 # Assign the metric_id value based on the metric_name_dict
                 df.at[index, "metric_id"] = metric_name_dict[metric_name]
             

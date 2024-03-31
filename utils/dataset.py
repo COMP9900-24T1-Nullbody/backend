@@ -100,6 +100,26 @@ class SQL:
         finally:
             cursor.close()
 
+    def query_many(self, query_str, params=None, fetchall_flag=True):
+        if not self.connection:
+            print("Error: Not connected to database")
+            return None
+
+        cursor = self.connection.cursor()
+        try:
+            cursor.executemany(query_str, params)
+            self.connection.commit()
+            print("Query executed successfully")
+            if fetchall_flag:
+                return cursor.fetchall()
+            else:
+                return cursor.fetchone()
+        except (mysql.connector.Error, psycopg2.Error) as err:
+            print(f"Error: {err}")
+            return None
+        finally:
+            cursor.close()
+
 
 class REDIS:
     def __init__(self, redis_config):
