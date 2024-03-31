@@ -67,9 +67,9 @@ def import_data():
             metric_name = df["metric_name"].tolist()
             metric_description = df["metric_description"].tolist()
             metric_unit = df["metric_unit"].tolist()
-            indicators = df["pillar"].tolist()
+            pillar = df["pillar"].tolist()
             headquarter_country = df["headquarter_country"].tolist()
 
-            query = "INSERT INTO metrics_duplicated_info (metric_id, metric_name, metric_description, metric_unit, indicators, headquarter_country) VALUES (%s, %s, %s, %s, %s, %s)"
-            params = list(zip(metric_id, metric_name, metric_description, metric_unit, indicators, headquarter_country))
+            query = "INSERT INTO metrics_duplicated_info (metric_id, metric_name, metric_description, metric_unit, headquarter_country) VALUES (%s, %s, %s, %s, %s, %s)"
+            params = list(zip(metric_id, metric_name, metric_description, metric_unit, pillar, headquarter_country))
             sql.query_many(query, params, True)

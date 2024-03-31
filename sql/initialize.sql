@@ -29,7 +29,7 @@ INSERT INTO users (name, email, password, google_id, microsoft_id, avatar_url) V
 
 DROP TABLE IF EXISTS company_info;--直接插入数据
 CREATE TABLE company_info (
-    perm_id  VARCHAR(255) PRIMARY KEY,
+    perm_id  VARCHAR(255) NOT NULL,
     company_name VARCHAR(255) NOT NULL,
     metric_year VARCHAR(255) NOT NULL
 );
@@ -37,11 +37,11 @@ CREATE TABLE company_info (
 
 DROP TABLE IF EXISTS metrics_duplicated_info; --
 CREATE TABLE metrics_duplicated_info (
-    metric_id SERIAL PRIMARY KEY,
+    metric_id INT NOT NULL,
     metric_name VARCHAR(255) NOT NULL,
     metric_description VARCHAR(255) NOT NULL,
     metric_unit VARCHAR(255) NOT NULL,
-    indicator VARCHAR(255) NOT NULL,--# 匹配一下indicator
+    -- indicator VARCHAR(255) NOT NULL,--# 匹配一下indicator
     pillar VARCHAR(255) NOT NULL,-- #pillar in the csv
     headquarter_country VARCHAR(255) NOT NULL
 );
@@ -51,7 +51,7 @@ CREATE TABLE metrics_value (
     perm_id VARCHAR(255) NOT NULL,
     metric_id INT NOT NULL,
     metric_value VARCHAR(255) NOT NULL,
-    PRIMARY KEY (perm_id, metric_id),
+    -- PRIMARY KEY (perm_id, metric_id),
     FOREIGN KEY (perm_id) REFERENCES company_info(perm_id),
     FOREIGN KEY (metric_id) REFERENCES metrics_duplicated_info(metric_id)
 );
