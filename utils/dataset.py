@@ -3,6 +3,7 @@ import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import mysql.connector
 import redis
+import os
 
 
 class SQLType(enum.Enum):
@@ -66,7 +67,8 @@ class SQL:
 
         cursor = self.connection.cursor()
         try:
-            with open("sql/initialize.sql", "r", encoding="utf-8") as sql_file:
+            initialize_sql_path = "D:/github_repo/backend/sql/initialize.sql"
+            with open(initialize_sql_path, "r", encoding="utf-8") as sql_file:
                 sql_queries = sql_file.read()
                 cursor.execute(sql_queries)
             if self.db_type == SQLType.MYSQL:
