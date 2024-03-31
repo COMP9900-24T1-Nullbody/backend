@@ -42,10 +42,24 @@ CREATE TABLE metrics_value (
     metric_id INT NOT NULL,
     metric_value VARCHAR(255) NOT NULL,
     metric_year VARCHAR(255) NOT NULL,
-    PRIMARY KEY (perm_id, metric_id),
+    PRIMARY KEY (perm_id, metric_id, metric_year),
     FOREIGN KEY (perm_id) REFERENCES company_info(perm_id),
     FOREIGN KEY (metric_id) REFERENCES metrics_duplicated_info(metric_id)
 );
+
+-- DROP TABLE IF EXISTS metrics_duplicated_info; 
+-- CREATE TABLE metrics_duplicated_info (
+--     metric_id INT NOT NULL,
+--     metric_name VARCHAR(255) NOT NULL,
+--     metric_description VARCHAR(255) NOT NULL,
+--     metric_unit VARCHAR(255) NOT NULL,
+--     -- indicator VARCHAR(255) NOT NULL,
+--     pillar VARCHAR(255) NOT NULL,
+--     headquarter_country VARCHAR(255) NOT NULL,
+--     FOREIGN KEY (metric_id) REFERENCES metrics_duplicated_info(metric_id)
+
+-- );
+
 
 DROP TABLE IF EXISTS metrics_duplicated_info; 
 CREATE TABLE metrics_duplicated_info (
@@ -53,13 +67,10 @@ CREATE TABLE metrics_duplicated_info (
     metric_name VARCHAR(255) NOT NULL,
     metric_description VARCHAR(255) NOT NULL,
     metric_unit VARCHAR(255) NOT NULL,
-    -- indicator VARCHAR(255) NOT NULL,
     pillar VARCHAR(255) NOT NULL,
     headquarter_country VARCHAR(255) NOT NULL,
     FOREIGN KEY (metric_id) REFERENCES metrics_duplicated_info(metric_id)
 
 );
-
-
 
 
