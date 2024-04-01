@@ -26,6 +26,7 @@ INSERT INTO users (name, email, password, google_id, microsoft_id, avatar_url) V
 
 
 -- 创建公司信息表，导入公司信息
+DROP TABLE IF EXISTS company_info CASCADE;
 DROP TABLE IF EXISTS company_info;
 CREATE TABLE company_info (
     perm_id  VARCHAR(255) NOT NULL,
@@ -35,20 +36,20 @@ CREATE TABLE company_info (
     PRIMARY KEY (perm_id, metric_value_id)
 );
 
-
+DROP TABLE IF EXISTS metric_value CASCADE;
 DROP TABLE IF EXISTS metric_value;
 CREATE TABLE metric_value (
-    metric_value_id INT PRIMARY KEY,
+    metric_value_id VARCHAR(255) PRIMARY KEY,
     perm_id VARCHAR(255) NOT NULL,
-    metric_id INT NOT NULL,
+    metric_id VARCHAR(255) NOT NULL,
     metric_value VARCHAR(255) NOT NULL,
     metric_year VARCHAR(255) NOT NULL
 );
 
-
+DROP TABLE IF EXISTS metric_duplicated_info CASCADE;
 DROP TABLE IF EXISTS metric_duplicated_info; 
 CREATE TABLE metric_duplicated_info (
-    metric_id INT PRIMARY KEY,
+    metric_id VARCHAR(255) PRIMARY KEY,
     metric_name VARCHAR(255) NOT NULL,
     metric_description VARCHAR(255) NOT NULL,
     metric_unit VARCHAR(255) NOT NULL,

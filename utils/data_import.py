@@ -56,12 +56,16 @@ def import_data():
             
             df = df.reset_index()
             df["metric_value_id"] = df["index"] + index_total
-            df = df.drop(columns=["index"])  # 如果你不需要原来的索引列，可以删除它  # 如果你不需要原来的索引列，可以删除它l 
+            df = df.drop(columns=["index"])  # 如果你不需要原来的索引列，可以删除它 
 
-            
             # Get the index value of the last row
             last_index = df["metric_value_id"].iloc[-1]
             index_total = last_index + index_total
+
+            #统一类型我就不信了！！           
+            df = df.astype(str)
+
+
 
             #---------for company_info table             
             perm_id = df["perm_id"].tolist()
