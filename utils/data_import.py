@@ -16,62 +16,83 @@ sql_config = config["sql"]
 sql = SQL(sql_config)
 sql.connect()
 
+
+
+
+
+
 def import_data():
-    metric_name_dict ={}
+    
     # Get the path to the data folder
     data_folder = os.path.join(os.path.dirname(__file__), "..", "data") #可以不写死路径
-
+    metric_name_dict ={}
     # Iterate over all CSV files in the data folder
     for filename in os.listdir(data_folder):
+
+        index_total = 0 #用以记录现在一共有多少数据
+        
+
         if filename.endswith(".csv"):
             file_path = os.path.join(data_folder, filename)
             df = pd.read_csv(file_path)
-            # Use vectorized operations instead of iterating over each row
-            
+
             # Add a new column "metric_id" with default value -1
             df["metric_id"] = -1
 
             # Iterate over the "metric_name" column
             for index, metric_name in enumerate(df["metric_name"]):
+
                 # Check if the metric_name is in metric_name_dict
-                if metric_name not in metric_name_dict:
+                if metric_name not in metric_name_dict.keys():
+
                     # Add the metric_name to metric_name_dict and assign an incremental value
                     metric_id = len(metric_name_dict)+1
                     metric_name_dict[metric_name] = metric_id
-                    df.at[index, "metric_id"] = metric_id
-                    continue               
-                # Assign the metric_id value based on the metric_name_dict
-                df.at[index, "metric_id"] = metric_name_dict[metric_name]
+                    df.at[index, "metric_id"] = metric_id              
+                else:
+                    # Assign the metric_id value based on the metric_name_dict
+                    df.at[index, "metric_id"] = metric_name_dict[metric_name]
+                
             
+            df = df.reset_index()
+            df["metric_value_id"] = df["index"] + index_total
+            df = df.drop(columns=["index"])  # 如果你不需要原来的索引列，可以删除它  # 如果你不需要原来的索引列，可以删除它l 
 
+            
+            # Get the index value of the last row
+            last_index = df["metric_value_id"].iloc[-1]
+            index_total = last_index + index_total
 
-            #---------for company_info table 
+            #---------for company_info table             
             perm_id = df["perm_id"].tolist()
+            metric_value_id = df["metric_value_id"].tolist()
             company_name = df["company_name"].tolist()
-            metric_id = df["metric_id"].tolist()
+            headquarter_country = df["headquarter_country"].tolist()
 
-            query = "INSERT INTO company_info (perm_id, metric_id, company_name) VALUES (%s, %s, %s)"
-            params = list(zip(perm_id, metric_id, company_name))
+            query = "INSERT INTO company_info (perm_id, metric_value_id, company_name, headquarter_country) VALUES (%s, %s, %s, %s)"
+            params = list(zip(perm_id, metric_value_id, company_name, headquarter_country))
             sql.query_many(query, params, True)
 
-            #---------for metrics_value table
-            metric_id = df["metric_id"].tolist()
+            #---------for metric_value table
+            metric_value_id = df["metric_value_id"].tolist()
             perm_id = df["perm_id"].tolist()
+            metric_id = df["metric_id"].tolist()
             metric_value = df["metric_value"].tolist()
             metric_year = df["metric_year"].tolist()
 
-            query = "INSERT INTO metrics_value (perm_id, metric_id, metric_value, metric_year) VALUES (%s, %s, %s,%s)"
-            params = list(zip(perm_id, metric_id, metric_value, metric_year))
+            query = "INSERT INTO metric_value (metric_value_id, perm_id, metric_id, metric_value, metric_year) VALUES (%s, %s, %s, %s, %s)"
+            params = list(zip(metric_value_id, perm_id, metric_id, metric_value, metric_year))
             sql.query_many(query, params, True)
 
-            #----------for metrics_duplicated_info table
+            #----------for metric_duplicated_info table
             metric_id = df["metric_id"].tolist()
             metric_name = df["metric_name"].tolist()
             metric_description = df["metric_description"].tolist()
             metric_unit = df["metric_unit"].tolist()
             pillar = df["pillar"].tolist()
-            headquarter_country = df["headquarter_country"].tolist()
+            # indicator = df["indicator"].tolist()
+            
 
-            query = "INSERT INTO metrics_duplicated_info (metric_id, metric_name, metric_description, metric_unit,pillar, headquarter_country) VALUES (%s, %s, %s, %s, %s, %s)"
-            params = list(zip(metric_id, metric_name, metric_description, metric_unit, pillar, headquarter_country))
+            query = "INSERT INTO metric_duplicated_info (metric_id, metric_name, metric_description, metric_unit,pillar) VALUES (%s, %s, %s, %s, %s)"
+            params = list(zip(metric_id, metric_name, metric_description, metric_unit, pillar))
             sql.query_many(query, params, True)
