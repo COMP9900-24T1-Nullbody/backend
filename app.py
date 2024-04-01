@@ -2,12 +2,12 @@ import random
 from flask import Flask, jsonify, redirect, request
 from flasgger import Swagger, swag_from
 from flask_cors import CORS
-import yaml
 
 from utils.picbed import ImgurUploader
 from utils.smtp import SMTPManager
 from utils.dataset import REDIS, SQL
 from utils.token import generate_token, decode_token
+from utils.helper import load_config
 
 import re
 
@@ -37,23 +37,6 @@ template = {
 swagger = Swagger(app, config=swagger_config, template=template)
 
 
-# sample
-@app.route("/colors/<palette>/")
-@swag_from("api/colors.yml")
-def colors(palette):
-    all_colors = {
-        "cmyk": ["cyan", "magenta", "yellow", "black"],
-        "rgb": ["red", "green", "blue"],
-    }
-    if palette == "all":
-        result = all_colors
-    else:
-        result = {palette: all_colors.get(palette)}
-
-    return jsonify(result)
-
-
-# ===============================================================
 @app.route("/login", methods=["POST"])
 @swag_from("api/login.yml")
 def login():
@@ -262,8 +245,6 @@ def reset_password():
 
     # 从 Redis 中获取存储的验证码和过期时间
     stored_code = int(redis.connection.get(email).decode())
-    print(stored_code, type(stored_code))
-    print(code, type(code))
 
     # 检查验证码是否存在
     if not stored_code:
@@ -330,14 +311,6 @@ def upload_avatar():
             return jsonify({"error": "Token info miss matched!"}), 400
     
     return jsonify({"message": "Image upload successfully"}), 200
-
-
-# helper function
-# Load database configuration from YAML file
-def load_config(filename):
-    with open(filename, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-    return config
 
 
 @app.route('/')
