@@ -2,6 +2,7 @@ import random
 from flask import Flask, jsonify, redirect, request
 from flasgger import Swagger, swag_from
 from flask_cors import CORS
+import pandas as pd
 
 from utils.picbed import ImgurUploader
 from utils.smtp import SMTPManager
@@ -328,6 +329,20 @@ def check_email_exists():
         return jsonify({"error": "Email already exists"})
     else:
         return jsonify({"message": "Email available"})
+
+
+@app.route("/get_companies")
+def get_all_companies():
+    try:
+        # 读取 CSV 文件
+        df = pd.read_csv("data/scores.csv")
+
+        # 提取所有唯一的 company_name
+        unique_companies = df["company_name"].unique()
+
+        return jsonify({"message": "Unique companies extracted successfully", "companies": list(unique_companies)})
+    except Exception as e:
+        return jsonify({"error": str(e)})
 
 
 @app.route("/")
