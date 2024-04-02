@@ -63,7 +63,7 @@ def login():
             # 使用解码后的信息构建 SQL 查询语句
             query = "SELECT * FROM users WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
             params = (id, name, email, password, google_id, microsoft_id)
-            user_info = sql.query(query, params, True)[0]
+            user_info = sql.query(query, params, False)
             if user_info:
                 # 如果查询到匹配的用户信息，生成新的 token 返回给客户端
                 token = generate_token(SECRET_KEY, user_info)
@@ -83,7 +83,7 @@ def login():
         # 使用 Google ID 登录
         query = "SELECT * FROM users WHERE google_id = %s"
         params = (google_id,)
-        user_info = sql.query(query, params, True)[0]
+        user_info = sql.query(query, params, False)
         if user_info:
             token = generate_token(SECRET_KEY, user_info)
             return jsonify({"message": "Login successfully, Welcome!", "token": token})
@@ -93,7 +93,7 @@ def login():
         # 使用 Microsoft ID 登录
         query = "SELECT * FROM users WHERE microsoft_id = %s"
         params = (microsoft_id,)
-        user_info = sql.query(query, params, True)[0]
+        user_info = sql.query(query, params, False)
         if user_info:
             token = generate_token(SECRET_KEY, user_info)
             return jsonify({"message": "Login successfully, Welcome!", "token": token})
@@ -103,7 +103,7 @@ def login():
         # 使用邮箱和密码登录
         query = "SELECT * FROM users WHERE email = %s AND password = %s"
         params = (email, password)
-        user_info = sql.query(query, params, True)[0]
+        user_info = sql.query(query, params, False)
         if user_info:
             token = generate_token(SECRET_KEY, user_info)
             return (
@@ -150,25 +150,25 @@ def register():
         microsoft_id = ""
 
     # 检查 email 是否已被使用
-    count = sql.query("SELECT COUNT(*) FROM users WHERE email = %s", (email,), False)[0]
-    if count != 0:
+    user = sql.query("SELECT * FROM users WHERE email = %s", (email,), False)
+    if user:
         return jsonify({"error": "Email already exists"})
 
     # 插入用户信息
-    insert_query = "INSERT INTO users (name, email, password, google_id, microsoft_id, avatar_url) VALUES (%s, %s, %s, %s, %s)"
+    insert_query = "INSERT INTO users (name, email, password, google_id, microsoft_id, avatar_url) VALUES (%s, %s, %s, %s, %s, %s)"
     params = (
         name,
         email,
         password,
         google_id,
         microsoft_id,
-        "https://i.imgur.com/pbMbyHp.jpg",
+        "https://i.imgur.com/pbMbyHp.jpg"
     )  # 默认头像
     sql.query(insert_query, params, False)
 
     # 查询刚插入的用户信息
-    select_query = "SELECT * FROM users WHERE name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
-    user_info = sql.query(select_query, params, True)[0]
+    select_query = "SELECT * FROM users WHERE name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s AND avatar_url = %s"
+    user_info = sql.query(select_query, params, False)
 
     # 生成 token
     token = generate_token(SECRET_KEY, user_info)
@@ -278,7 +278,7 @@ def upload_avatar():
         # 使用解码后的信息构建 SQL 查询语句
         query = "SELECT * FROM users WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
         params = (id, name, email, password, google_id, microsoft_id)
-        user_info = sql.query(query, params, True)[0]
+        user_info = sql.query(query, params, False)
         if user_info:
             # 如果查询到匹配的用户信息，更新对应的头像URL，并生成新的 token 返回给客户端
             update_query = "UPDATE users SET avatar_url = %s WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s;"
@@ -291,7 +291,7 @@ def upload_avatar():
                 google_id,
                 microsoft_id,
             )
-            sql.query(update_query, params, True)
+            sql.query(update_query, params, False)
 
             user_info = (
                 id,
