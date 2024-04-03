@@ -385,29 +385,30 @@ def upload_avatar():
     return jsonify({"message": "Image upload successfully"}), 200
 
 
-# @app.route("/company/info", methods=["POST"])
-# @swag_from("api/company_info.yml")
-# def company_info():
-#     data = request.get_json()
+@app.route("/company/info", methods=["POST"])
+@swag_from("api/company_info.yml")
+def company_info():
+    data = request.get_json()
 
-#     if company_info:
-#         company_name = data.get("company_name")
-#         # framework_name=data.get("frame_work_name")
-#     else:
-#         return jsonify({"error": "Company name or framework name are required"}), 400
+    if company_info:
+        company_name = data.get("company_name")
+        # framework_name=data.get("frame_work_name")
+    else:
+        return jsonify({"error": "Company name or framework name are required"}), 400
     
-#     # 从数据库中获取公司信息/评分从data.py中获取/csv信息先存进新表
-#     query = """
-#         SELECT  *
-#         FROM company_info 
-#         JOIN metrics_value ON company_info.perm_id = metrics_value.perm_id
-#         JOIN metrics_duplicated_info ON metrics_value.metric_id = metrics_duplicated_info.metric_id
-#         WHERE company_info.company_name = %s
-#     """
-#     params = (company_name)
-#     sql_info = sql.query(query, params, True)[0]
+    # 从数据库中获取公司信息/评分从data.py中获取/csv信息先存进新表
+    query = """
+        SELECT  *
+        FROM company_info 
+        JOIN metrics_value ON company_info.perm_id = metrics_value.perm_id
+        JOIN metrics_duplicated_info ON metrics_value.metric_id = metrics_duplicated_info.metric_id
+        WHERE company_info.company_name = %s
+    """
+    params = (company_name)
+    sql_info = sql.query(query, params, True)[0]
 
-#     # if sql_info:
+    if sql_info:
+        return jsonify({"message": "Company info get successfully!", "company_info": sql_info}), 200
         
 
 
@@ -447,7 +448,7 @@ if __name__ == "__main__":
     sql = SQL(sql_config)
     redis = REDIS(redis_config)
     smtp = SMTPManager(smtp_config)
-    picbed = ImgurUploader(picbed_config)
+    # picbed = ImgurUploader(picbed_config) #莫名报错，服务器断开了？
 
     # Attempt to connect to the database
     sql.connect()
@@ -456,9 +457,8 @@ if __name__ == "__main__":
     # Initialize database tables
     sql.initialize()
 
+    # Start Flask application
+    app.run(host="0.0.0.0", port=5000, debug=True)
 
     # Import data from CSV files
     import_data()
-
-    # Start Flask application
-    app.run(host="0.0.0.0", port=5000, debug=True)

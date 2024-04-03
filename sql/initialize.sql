@@ -51,7 +51,7 @@ DROP TABLE IF EXISTS metric_duplicated_info;
 CREATE TABLE metric_duplicated_info (
     metric_id VARCHAR(255) PRIMARY KEY,
     metric_name VARCHAR(255) NOT NULL,
-    metric_description VARCHAR(255) NOT NULL,
+    metric_description TEXT NOT NULL,
     metric_unit VARCHAR(255) NOT NULL,
     pillar VARCHAR(255) NOT NULL
 );
