@@ -1,11 +1,15 @@
-CREATE TYPE IF NOT EXISTS pillar_type AS ENUM ('E', 'S', 'G');
-CREATE TYPE IF NOT EXISTS unit_type AS ENUM(
+DROP TYPE IF EXISTS pillar_type;
+CREATE TYPE pillar_type AS ENUM ('E', 'S', 'G');
+
+DROP TYPE IF EXISTS unit_type;
+CREATE TYPE unit_type AS ENUM (
     'Cubic meters',
     'Cubic meters / million EUR of revenue of investee companies',
     'GJ',
     'Hours/employee',
     'Injured / million hours',
     'Non / audit USD / audit USD',
+    'Number of breaches',
     'Number of days',
     'Number of fatalities',
     'Ratio',
@@ -23,8 +27,9 @@ CREATE TYPE IF NOT EXISTS unit_type AS ENUM(
     'Yes/No'
 );
 
+DROP TABLE IF EXISTS metrics;
 CREATE TABLE IF NOT EXISTS metrics (
-    id INT PRIMARY KEY AUTO_INCREMENT,
+    id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     pillar pillar_type NOT NULL,
     description TEXT NOT NULL,
@@ -216,7 +221,7 @@ VALUES (
     (
         'CO2DIRECTSCOPE1',
         'E',
-        'Scope 1 emissions that occur within a company’s organizational boundary from sources that the company owns or controls in tons of CO2e.',
+        'Scope 1 emissions that occur within a company''s organizational boundary from sources that the company owns or controls in tons of CO2e.',
         'Tons CO2e'
     ),
     (
@@ -378,7 +383,7 @@ VALUES (
     (
         'HUMAN_RIGHTS_POLICY_DUEDILIGENCE',
         'S',
-        'Does the company have a due diligence process in place to prevent/ act upon human right abuses? Both in its operations and suppliers’ operations?',
+        'Does the company have a due diligence process in place to prevent/ act upon human right abuses? Both in its operations and suppliers'' operations?',
         'Yes/No'
     ),
     (
