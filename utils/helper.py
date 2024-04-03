@@ -1,5 +1,6 @@
 import yaml
 
+
 # helper function
 # Load database configuration from YAML file
 def load_config(filename):

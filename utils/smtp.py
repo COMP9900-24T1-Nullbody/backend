@@ -20,7 +20,7 @@ class SMTPManager:
             self.server = smtplib.SMTP(self.host, self.port)
             self.server.starttls()
             self.server.login(self.user, self.password)
-            
+
             self.server.send_message(msg)
         except smtplib.SMTPResponseException as e:
             error_code = e.smtp_code

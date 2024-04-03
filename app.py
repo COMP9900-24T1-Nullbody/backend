@@ -67,13 +67,11 @@ def login():
             if user_info:
                 # 如果查询到匹配的用户信息，生成新的 token 返回给客户端
                 token = generate_token(SECRET_KEY, user_info)
-                return (
-                    jsonify(
-                        {
-                            "message": "Token detected. Auto-Login successfully, Welcome!",
-                            "token": token,
-                        }
-                    )
+                return jsonify(
+                    {
+                        "message": "Token detected. Auto-Login successfully, Welcome!",
+                        "token": token,
+                    }
                 )
             else:
                 return jsonify({"error": "Token info miss matched!"})
@@ -106,14 +104,10 @@ def login():
         user_info = sql.query(query, params, False)
         if user_info:
             token = generate_token(SECRET_KEY, user_info)
-            return (
-                jsonify({"message": "Login successfully, Welcome!", "token": token})
-            )
+            return jsonify({"message": "Login successfully, Welcome!", "token": token})
         else:
-            return (
-                jsonify(
-                    {"error": "Invalid email or password, or You haven't registered!"}
-                )
+            return jsonify(
+                {"error": "Invalid email or password, or You haven't registered!"}
             )
     else:
         return jsonify({"error": "Email and password or Google ID are required"})
@@ -130,25 +124,6 @@ def register():
     microsoft_id = data.get("microsoft_id")
     token = data.get("token")
 
-    if google_id:
-        # 如果使用谷歌账户注册，确保传递了必要的字段
-        if not name or not email or not google_id:
-            return jsonify({"error": "Name, email, and google_id are required"})
-        password = ""
-        microsoft_id = ""
-    elif microsoft_id:
-        # 如果使用微软账户注册，确保传递了必要的字段
-        if not name or not email or not microsoft_id:
-            return jsonify({"error": "Name, email, and microsoft_id are required"})
-        password = ""
-        google_id = ""
-    else:
-        # 如果不是使用谷歌账户注册，确保传递了必要的字段
-        if not name or not email or not password:
-            return jsonify({"error": "Name, email, and password are required"})
-        google_id = ""
-        microsoft_id = ""
-
     # 检查 email 是否已被使用
     user = sql.query("SELECT * FROM users WHERE email = %s", (email,), False)
     if user:
@@ -162,26 +137,33 @@ def register():
         password,
         google_id,
         microsoft_id,
-        "https://i.imgur.com/pbMbyHp.jpg"
+        "https://i.imgur.com/pbMbyHp.jpg",
     )  # 默认头像
     sql.query(insert_query, params, False)
 
     # 查询刚插入的用户信息
-    select_query = "SELECT * FROM users WHERE name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s AND avatar_url = %s"
-    user_info = sql.query(select_query, params, False)
+    if email and password:
+        select_query = "SELECT * FROM users WHERE email = %s AND password = %s"
+        user_info = sql.query(select_query, (email, password), False)
+    elif google_id:
+        select_query = "SELECT * FROM users WHERE google_id = %s"
+        user_info = sql.query(select_query, (google_id,), False)
+    elif microsoft_id:
+        select_query = "SELECT * FROM users WHERE microsoft_id = %s"
+        user_info = sql.query(select_query, (microsoft_id,), False)
+    else:
+        return jsonify({"error": "Email and password or Google ID are required"})
 
     # 生成 token
     token = generate_token(SECRET_KEY, user_info)
 
     # 返回完整的用户信息和 token
-    return (
-        jsonify(
-            {
-                "message": "Registered successfully, Welcome!",
-                "user": user_info,
-                "token": token,
-            }
-        )
+    return jsonify(
+        {
+            "message": "Registered successfully, Welcome!",
+            "user": user_info,
+            "token": token,
+        }
     )
 
 
@@ -303,18 +285,236 @@ def upload_avatar():
                 new_avatar_url,
             )
             token = generate_token(SECRET_KEY, user_info)
-            return (
-                jsonify(
-                    {
-                        "message": "Avatar upload successfully!",
-                        "token": token,
-                    }
-                )
+            return jsonify(
+                {
+                    "message": "Avatar upload successfully!",
+                    "token": token,
+                }
             )
         else:
             return jsonify({"error": "Token info miss matched!"})
 
-    return jsonify({"message": "Image upload successfully"})
+    return jsonify({"error": "Can't get user_info from token!"})
+
+
+@app.route("/update/name", methods=["POST"])
+def update_name():
+    data = request.get_json()
+    token = data.get("token")
+    name = data.get("name")
+
+    if not token or not name:
+        return jsonify({"error": "Token and name are required"})
+
+    user_info = decode_token(SECRET_KEY, token)
+
+    if not user_info:
+        return jsonify({"error": "Invalid token"})
+
+    id = user_info.get("id")
+    email = user_info.get("email")
+    password = user_info.get("password")
+    google_id = user_info.get("google_id")
+    microsoft_id = user_info.get("microsoft_id")
+
+    # 更新数据库中的用户名信息
+    update_query = "UPDATE users SET name = %s WHERE id = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
+    params = (name, id, email, password, google_id, microsoft_id)
+    sql.query(update_query, params, True)
+
+    user_info["name"] = name
+    user_info = (
+        user_info["id"],
+        user_info["name"],
+        user_info["email"],
+        user_info["password"],
+        user_info["google_id"],
+        user_info["microsoft_id"],
+        user_info["avatar_url"],
+    )
+    new_token = generate_token(SECRET_KEY, user_info)
+
+    return jsonify({"message": "Name updated successfully", "token": new_token})
+
+
+@app.route("/update/email", methods=["POST"])
+def update_email():
+    data = request.get_json()
+    token = data.get("token")
+    email = data.get("email")
+
+    if not token or not email:
+        return jsonify({"error": "Token and email are required"})
+
+    user_info = decode_token(SECRET_KEY, token)
+
+    if not user_info:
+        return jsonify(
+            {"error": "Invalid token or token is expired, Try to login again."}
+        )
+
+    id = user_info.get("id")
+    name = user_info.get("name")
+    password = user_info.get("password")
+    google_id = user_info.get("google_id")
+    microsoft_id = user_info.get("microsoft_id")
+
+    # 更新数据库中的邮箱信息
+    update_query = "UPDATE users SET email = %s WHERE id = %s AND name = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
+    params = (email, id, name, password, google_id, microsoft_id)
+    sql.query(update_query, params, True)
+
+    user_info["email"] = email
+    user_info = (
+        user_info["id"],
+        user_info["name"],
+        user_info["email"],
+        user_info["password"],
+        user_info["google_id"],
+        user_info["microsoft_id"],
+        user_info["avatar_url"],
+    )
+    new_token = generate_token(SECRET_KEY, user_info)
+
+    return jsonify({"message": "Email updated successfully", "token": new_token})
+
+
+@app.route("/update/password", methods=["POST"])
+def update_password():
+    data = request.get_json()
+    token = data.get("token")
+    password = data.get("password")
+
+    if not token or not password:
+        return jsonify({"error": "Token and password are required"})
+
+    user_info = decode_token(SECRET_KEY, token)
+
+    if not user_info:
+        return jsonify(
+            {"error": "Invalid token or token is expired, Try to login again."}
+        )
+
+    id = user_info.get("id")
+    name = user_info.get("name")
+    email = user_info.get("email")
+    google_id = user_info.get("google_id")
+    microsoft_id = user_info.get("microsoft_id")
+
+    # 更新数据库中的密码信息
+    update_query = "UPDATE users SET password = %s WHERE id = %s AND name = %s AND email = %s AND google_id = %s AND microsoft_id = %s"
+    params = (password, id, name, email, google_id, microsoft_id)
+    sql.query(update_query, params, True)
+
+    user_info["password"] = password
+    user_info = (
+        user_info["id"],
+        user_info["name"],
+        user_info["email"],
+        user_info["password"],
+        user_info["google_id"],
+        user_info["microsoft_id"],
+        user_info["avatar_url"],
+    )
+    new_token = generate_token(SECRET_KEY, user_info)
+
+    return jsonify({"message": "Password updated successfully", "token": new_token})
+
+
+@app.route("/update/google_id", methods=["POST"])
+def update_google_id():
+    data = request.get_json()
+    token = data.get("token")
+    google_id = data.get("google_id")
+
+    if not token or not google_id:
+        return jsonify({"error": "Token and Google ID are required"})
+
+    user_info = decode_token(SECRET_KEY, token)
+
+    if not user_info:
+        return jsonify(
+            {"error": "Invalid token or token is expired, Try to login again."}
+        )
+
+    # 查询google_id是否已被绑定
+    user = sql.query("SELECT * FROM users WHERE google_id = %s", (google_id,), False)
+    if user:
+        return jsonify({"error": "Google ID already bound."})
+
+    id = user_info.get("id")
+    name = user_info.get("name")
+    email = user_info.get("email")
+    password = user_info.get("password")
+    microsoft_id = user_info.get("microsoft_id")
+
+    # 更新数据库中的Google ID信息
+    update_query = "UPDATE users SET google_id = %s WHERE id = %s AND name = %s AND email = %s AND password = %s AND microsoft_id = %s"
+    params = (google_id, id, name, email, password, microsoft_id)
+    sql.query(update_query, params, True)
+
+    user_info["google_id"] = google_id
+    user_info = (
+        user_info["id"],
+        user_info["name"],
+        user_info["email"],
+        user_info["password"],
+        user_info["google_id"],
+        user_info["microsoft_id"],
+        user_info["avatar_url"],
+    )
+    new_token = generate_token(SECRET_KEY, user_info)
+
+    return jsonify({"message": "Google ID updated successfully", "token": new_token})
+
+
+@app.route("/update/microsoft_id", methods=["POST"])
+def update_microsoft_id():
+    data = request.get_json()
+    token = data.get("token")
+    microsoft_id = data.get("microsoft_id")
+
+    if not token or not microsoft_id:
+        return jsonify({"error": "Token and Microsoft ID are required"})
+
+    user_info = decode_token(SECRET_KEY, token)
+
+    if not user_info:
+        return jsonify(
+            {"error": "Invalid token or token is expired, Try to login again."}
+        )
+
+    # 查询microsoft_id是否已被绑定
+    user = sql.query(
+        "SELECT * FROM users WHERE microsoft_id = %s", (microsoft_id,), False
+    )
+    if user:
+        return jsonify({"error": "Microsoft ID already bound."})
+
+    id = user_info.get("id")
+    name = user_info.get("name")
+    email = user_info.get("email")
+    password = user_info.get("password")
+    google_id = user_info.get("google_id")
+
+    # 更新数据库中的Microsoft ID信息
+    update_query = "UPDATE users SET microsoft_id = %s WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s"
+    params = (microsoft_id, id, name, email, password, google_id)
+    sql.query(update_query, params, True)
+
+    user_info["microsoft_id"] = microsoft_id
+    user_info = (
+        user_info["id"],
+        user_info["name"],
+        user_info["email"],
+        user_info["password"],
+        user_info["google_id"],
+        user_info["microsoft_id"],
+        user_info["avatar_url"],
+    )
+    new_token = generate_token(SECRET_KEY, user_info)
+
+    return jsonify({"message": "Microsoft ID updated successfully", "token": new_token})
 
 
 @app.route("/register_check/email", methods=["POST"])
@@ -340,7 +540,12 @@ def get_all_companies():
         # 提取所有唯一的 company_name
         unique_companies = df["company_name"].unique()
 
-        return jsonify({"message": "Unique companies extracted successfully", "companies": list(unique_companies)})
+        return jsonify(
+            {
+                "message": "Unique companies extracted successfully",
+                "companies": list(unique_companies),
+            }
+        )
     except Exception as e:
         return jsonify({"error": str(e)})
 
