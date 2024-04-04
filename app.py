@@ -11,9 +11,6 @@ from utils.token import generate_token, decode_token
 from utils.helper import load_config
 
 import re
-import os
-
-
 
 app = Flask(__name__)
 CORS(app)
@@ -237,96 +234,6 @@ def reset_password():
     )
 
     return jsonify({"message": "Password reset successfully"})
-
-
-@app.route("/update_userinfo", methods=["POST"])
-@swag_from("api/update_userinfo.yml")
-def update_userinfo():
-    data = request.get_json()
-    token = data.get("token")
-    user_info = decode_token(SECRET_KEY, token)
-
-    if user_info:
-        # 获取用户更新信息中的各个字段
-        id = user_info.get("id")
-        name = user_info.get("name")
-        email = user_info.get("email")
-        password = user_info.get("password")
-        google_id = user_info.get("google_id")
-        microsoft_id = user_info.get("microsoft_id")
-
-        # 使用解码后的信息构建 SQL 查询语句
-        query = "SELECT * FROM users WHERE id = %s"
-        params = (id)
-        old_info = sql.query(query, params, True)[0]
-        if old_info:#如果有老用户信息，更新对应的用户信息，生成新的 token 返回给客户端
-            update_query = "UPDATE users WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s;"
-            params = (id, name, email, password, google_id, microsoft_id)
-            sql.query(update_query, params, True)
-            user_info = (id, name, email, password, google_id, microsoft_id)
-            token = generate_token(SECRET_KEY, user_info)
-            return (
-                jsonify(
-                    {
-                        "message": "info update successfully!",
-                        "token": token,
-                    }
-                ),
-                200,
-            )
-        else:
-            return jsonify({"error": "Token info miss matched!"}), 400
-    
-    return jsonify({"message": "info updated successfully"}), 200
-
-
-
-
-
-
-@app.route("/update_userinfo", methods=["POST"])
-@swag_from("api/update_userinfo.yml")
-def update_userinfo():
-    data = request.get_json()
-    token = data.get("token")
-    user_info = decode_token(SECRET_KEY, token)
-
-    if user_info:
-        # 获取用户更新信息中的各个字段
-        id = user_info.get("id")
-        name = user_info.get("name")
-        email = user_info.get("email")
-        password = user_info.get("password")
-        google_id = user_info.get("google_id")
-        microsoft_id = user_info.get("microsoft_id")
-
-        # 使用解码后的信息构建 SQL 查询语句
-        query = "SELECT * FROM users WHERE id = %s"
-        params = (id)
-        old_info = sql.query(query, params, True)[0]
-        if old_info:#如果有老用户信息，更新对应的用户信息，生成新的 token 返回给客户端
-            update_query = "UPDATE users WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s;"
-            params = (id, name, email, password, google_id, microsoft_id)
-            sql.query(update_query, params, True)
-            user_info = (id, name, email, password, google_id, microsoft_id)
-            token = generate_token(SECRET_KEY, user_info)
-            return (
-                jsonify(
-                    {
-                        "message": "info update successfully!",
-                        "token": token,
-                    }
-                ),
-                200,
-            )
-        else:
-            return jsonify({"error": "Token info miss matched!"}), 400
-    
-    return jsonify({"message": "info updated successfully"}), 200
-
-
-
-
 
 
 @app.route("/upload_avatar", methods=["POST"])
@@ -663,7 +570,7 @@ if __name__ == "__main__":
     sql = SQL(sql_config)
     redis = REDIS(redis_config)
     smtp = SMTPManager(smtp_config)
-    # picbed = ImgurUploader(picbed_config) #莫名报错，服务器断开了？
+    picbed = ImgurUploader(picbed_config)
 
     # Attempt to connect to the database
     sql.connect()
@@ -674,6 +581,3 @@ if __name__ == "__main__":
 
     # Start Flask application
     app.run(host="0.0.0.0", port=5000, debug=True)
-
-    # Import data from CSV files
-    import_data()
