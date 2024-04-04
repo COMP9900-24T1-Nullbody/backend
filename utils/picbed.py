@@ -45,7 +45,7 @@ class ImgurUploader:
                 for meta in self.allowed_image_fields.intersection(config.keys())
             }
         )
-        
+
         try:
             image = self.client.make_request("POST", "upload", data, False)
             print("图片上传成功！地址为：", image["link"])

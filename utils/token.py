@@ -1,6 +1,7 @@
 import jwt
 import datetime
 
+
 # 生成 token 的函数
 def generate_token(SECRET_KEY, user_info):
     id, name, email, password, google_id, microsoft_id, avatar_url = user_info
@@ -11,7 +12,7 @@ def generate_token(SECRET_KEY, user_info):
         "password": password,
         "google_id": google_id,
         "microsoft_id": microsoft_id,
-        "avatar_url" : avatar_url,
+        "avatar_url": avatar_url,
         "exp": datetime.datetime.now(datetime.UTC)
         + datetime.timedelta(minutes=30),  # 设置 token 过期时间
     }
