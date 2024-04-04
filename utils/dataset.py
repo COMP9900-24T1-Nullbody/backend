@@ -67,7 +67,7 @@ class SQL:
 
         cursor = self.connection.cursor()
         try:
-            initialize_sql_path = "backend\sql\initialize.sql"
+            initialize_sql_path = "sql\initialize.sql"
             with open(initialize_sql_path, "r", encoding="utf-8") as sql_file:
                 sql_queries = sql_file.read()
                 cursor.execute(sql_queries)
