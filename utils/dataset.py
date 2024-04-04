@@ -100,6 +100,29 @@ class SQL:
         finally:
             cursor.close()
 
+    def data_import(self):
+        files = ["companies", "countries", "metrics", "scores", "others"]
+        
+        if not self.connection:
+            print("Error: Not connected to database")
+            return
+
+        cursor = self.connection.cursor()
+        try:
+            for file_path in files:
+                file_path = "sql/" + file_path + ".sql"
+                with open(file_path, "r", encoding="utf-8") as sql_file:
+                    sql_queries = sql_file.read()
+                    cursor.execute(sql_queries)
+
+            self.connection.commit()
+            print("Data import completed successfully")
+        except (mysql.connector.Error, psycopg2.Error) as err:
+            print(f"Error: {err}")
+            self.connection.rollback()
+        finally:
+            cursor.close()
+
 
 class REDIS:
     def __init__(self, redis_config):

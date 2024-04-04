@@ -1,7 +1,7 @@
-DROP TYPE IF EXISTS pillar_type;
+DROP TYPE IF EXISTS pillar_type CASCADE;
 CREATE TYPE pillar_type AS ENUM ('E', 'S', 'G');
 
-DROP TYPE IF EXISTS unit_type;
+DROP TYPE IF EXISTS unit_type CASCADE;
 CREATE TYPE unit_type AS ENUM (
     'Cubic meters',
     'Cubic meters / million EUR of revenue of investee companies',
