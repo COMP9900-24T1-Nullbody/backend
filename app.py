@@ -531,7 +531,7 @@ def check_email_exists():
         return jsonify({"message": "Email available"})
 
 
-@app.route("/get_companies")
+@app.route("/company/all", methods=["GET"])
 def get_all_companies():
     try:
         # 读取 CSV 文件
@@ -548,6 +548,44 @@ def get_all_companies():
         )
     except Exception as e:
         return jsonify({"error": str(e)})
+
+
+@app.route("/company/by_country", methods=["POST"])
+def get_companies_by_country():
+    # 获取请求中的JSON数据
+    data = request.get_json()
+    country_code = data.get("country_code")
+
+    # 检查country_code是否存在
+    if not country_code:
+        return jsonify({"error": "Country code is required"})
+
+    # 构建 SQL 查询语句
+    query = "SELECT companies.name FROM companies JOIN countries ON companies.country_id = countries.id WHERE countries.code = %s"
+    params = (country_code,)
+
+    # 执行查询并获取结果
+    companies_data = sql.query(query, params, fetchall_flag=True)
+
+    # 提取查询结果中的公司名称
+    companies = [company[0] for company in companies_data]
+
+    return jsonify({"companies": companies})
+
+
+
+@app.route("/country/all", methods=["GET"])
+def get_all_countries():
+    # SQL 查询语句
+    query = "SELECT name, code FROM countries"
+
+    # 执行查询并获取结果
+    countries_data = sql.query(query, fetchall_flag=True)
+
+    # 构建返回的 JSON 数据
+    countries = [{"name": country[0], "code": country[1]} for country in countries_data]
+
+    return jsonify({"countries": countries})
 
 
 @app.route("/")
