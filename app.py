@@ -573,6 +573,36 @@ def get_companies_by_country():
     return jsonify({"companies": companies})
 
 
+@app.route("/company_info", methods=["POST"])
+def get_company_info():
+    data = request.get_json()
+    company_name = data.get("company_name")
+
+    if not company_name:
+        return jsonify({"error": "Company name is required"})
+
+    # 构建 SQL 查询语句
+    query = """
+    SELECT 
+        metrics.name,
+        scores.year,
+        scores.score
+    FROM scores
+    JOIN metrics ON scores.metric_id = metrics.id
+    JOIN companies ON scores.company_id = companies.id
+    WHERE companies.name = %s
+    """
+    params = (company_name,)
+
+    # 执行查询并获取结果
+    company_info = sql.query(query, params, fetchall_flag=True)
+
+    # 构建返回的 JSON 数据
+    result = [{"metric_name": row[0], "year": row[1], "score": row[2]} for row in company_info]
+
+    return jsonify({"company_info": result})
+
+
 
 @app.route("/country/all", methods=["GET"])
 def get_all_countries():
