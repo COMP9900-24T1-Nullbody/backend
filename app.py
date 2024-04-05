@@ -4,6 +4,7 @@ from flasgger import Swagger, swag_from
 from flask_cors import CORS
 import pandas as pd
 
+from utils.data_export import process_pillar_data
 from utils.picbed import ImgurUploader
 from utils.smtp import SMTPManager
 from utils.dataset import REDIS, SQL
@@ -11,8 +12,6 @@ from utils.token import generate_token, decode_token
 from utils.helper import load_config
 
 import re
-
-import json
 
 
 
@@ -575,25 +574,10 @@ def get_companies_info():
 
     if  company_info:
         company_info = pd.DataFrame(company_info, columns=["Company", "Country", "Metric", "Description", "Pillar", "Unit", "Score", "Year"])
-        
-        def process_pillar_data(pillar, company_info):
-            pillar_data = company_info[company_info['Pillar'] == pillar][["Metric", "Score", "Unit", "Description"]]
-            pillar_data = pillar_data.to_dict(orient='records')
-            indicators = {
-                "Pillar": [pillar] * len(pillar_data),
-                "metrics": pillar_data
-            }
-            #有indicator的时候，匹配metrics然后再嵌套一层就行
-            pillar_js = pd.DataFrame(indicators).to_json(orient="records")
-            return pillar_js
-
+    
         E_js = process_pillar_data('E', company_info)
         S_js = process_pillar_data('S', company_info)
         G_js = process_pillar_data('G', company_info)
-
-
-
-
 
         result = {
                 "company": company,
