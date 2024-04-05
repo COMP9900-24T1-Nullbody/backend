@@ -12,6 +12,10 @@ from utils.helper import load_config
 
 import re
 
+import json
+
+
+
 app = Flask(__name__)
 CORS(app)
 swagger_config = {
@@ -548,6 +552,7 @@ def get_all_companies():
 def get_companies_info():
     data = request.args
     company = data.get("company_name")
+    # framework = data.get("framework")
 
     query = '''SELECT 
                 companies.name,
@@ -570,8 +575,34 @@ def get_companies_info():
 
     if  company_info:
         company_info = pd.DataFrame(company_info, columns=["Company", "Country", "Metric", "Description", "Pillar", "Unit", "Score", "Year"])
-        json_data = company_info.to_json(orient="records")
-        return jsonify({"message": "Found that", "data": json_data}) 
+        
+        def process_pillar_data(pillar, company_info):
+            pillar_data = company_info[company_info['Pillar'] == pillar][["Metric", "Score", "Unit", "Description"]]
+            pillar_data = pillar_data.to_dict(orient='records')
+            indicators = {
+                "Pillar": [pillar] * len(pillar_data),
+                "metrics": pillar_data
+            }
+            #有indicator的时候，匹配metrics然后再嵌套一层就行
+            pillar_js = pd.DataFrame(indicators).to_json(orient="records")
+            return pillar_js
+
+        E_js = process_pillar_data('E', company_info)
+        S_js = process_pillar_data('S', company_info)
+        G_js = process_pillar_data('G', company_info)
+
+
+
+
+
+        result = {
+                "company": company,
+                # "framework": "frame_work_name",
+                # "score": 89,
+                "Pillar":{ "E": E_js, "S": S_js, "G": G_js}
+        }
+        
+        return jsonify({"message": "Found that", "data": result}) 
     else:
         return jsonify({"message": "Company information not found"}) 
 
