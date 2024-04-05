@@ -28,12 +28,20 @@ sql:
   # name: comp9900
   # port: 3306
 
+  # # localhostz - postgresql
+  # type: postgresql
+  # host: localhost
+  # user: yst990102
+  # password: zxcvb987321
+  # name: comp9900
+  # port: 5432
+
   # localhostz - postgresql
   type: postgresql
   host: localhost
   user: yst990102
   password: zxcvb987321
-  name: comp9900
+  name: test
   port: 5432
 
   # # Render - postgresql - external

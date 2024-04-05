@@ -1,0 +1,20 @@
+parameters:
+  - name: company_name
+    in: query
+    required: true
+    schema:
+      type: string
+      example: "Artgo Holdings Ltd"
+
+responses:
+  '200':
+    description: OK
+    content:
+      application/json:
+        schema:
+          type: object
+          properties:
+            data:
+              type: object
+              properties:
+                // Add properties for the returned JSON data here

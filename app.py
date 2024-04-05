@@ -533,21 +533,48 @@ def check_email_exists():
 
 @app.route("/get_companies")
 def get_all_companies():
-    try:
-        # 读取 CSV 文件
-        df = pd.read_csv("data/scores.csv")
+    companies = sql.query("SELECT name FROM companies", None, True)
+    if  companies:
+        company_names = pd.DataFrame(companies, columns=["name"])
+        json_data = company_names.to_json(orient="records")
+        return jsonify({"message": "Found that", "data": json_data}) 
+    else:
+        return jsonify({"message": "Company name not found"}) 
 
-        # 提取所有唯一的 company_name
-        unique_companies = df["company_name"].unique()
 
-        return jsonify(
-            {
-                "message": "Unique companies extracted successfully",
-                "companies": list(unique_companies),
-            }
-        )
-    except Exception as e:
-        return jsonify({"error": str(e)})
+
+@app.route("/get_companies_info", methods=["GET"])
+@swag_from("api/get_companies_info.yml")
+def get_companies_info():
+    data = request.args
+    company = data.get("company_name")
+
+    query = '''SELECT 
+                companies.name,
+                countries.name,
+                metrics.name,
+                metrics.description,
+                metrics.pillar,
+                metrics.unit,
+                scores.score,
+                scores.year
+                FROM scores
+                JOIN metrics ON scores.metric_id = metrics.id
+                JOIN companies ON scores.company_id = companies.id
+                JOIN countries ON companies.country_id = countries.id
+                WHERE companies.name = %s;'''
+        
+    company_info = sql.query(query, (company,), True)
+    #每个查询结果是一个元组，元组组成一个列表
+
+
+    if  company_info:
+        company_info = pd.DataFrame(company_info, columns=["Company", "Country", "Metric", "Description", "Pillar", "Unit", "Score", "Year"])
+        json_data = company_info.to_json(orient="records")
+        return jsonify({"message": "Found that", "data": json_data}) 
+    else:
+        return jsonify({"message": "Company information not found"}) 
+
 
 
 @app.route("/")
