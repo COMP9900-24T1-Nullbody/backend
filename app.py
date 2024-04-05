@@ -585,6 +585,7 @@ def get_company_info():
     query = """
     SELECT 
         metrics.name,
+        metrics.description,
         scores.year,
         scores.score
     FROM scores
@@ -598,10 +599,17 @@ def get_company_info():
     company_info = sql.query(query, params, fetchall_flag=True)
 
     # 构建返回的 JSON 数据
-    result = [{"metric_name": row[0], "year": row[1], "score": row[2]} for row in company_info]
+    result = [
+        {
+            "metric_name": row[0],
+            "metric_description": row[1],
+            "year": row[2],
+            "score": row[3],
+        }
+        for row in company_info
+    ]
 
     return jsonify({"company_info": result})
-
 
 
 @app.route("/country/all", methods=["GET"])
