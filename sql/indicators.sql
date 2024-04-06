@@ -1,9 +1,9 @@
 DROP TABLE IF EXISTS indicators;
 CREATE TABLE indicators (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
-    metric_id INTEGER NOT NULL,
-)
+    metric_id INTEGER NOT NULL
+);
 
 INSERT INTO indicators (name, metric_id) VALUES ('Carbon Emissions and Air Pollutants', 1);
 INSERT INTO indicators (name, metric_id) VALUES ('Carbon Emissions and Air Pollutants', 2);
@@ -74,9 +74,9 @@ INSERT INTO indicators (name, metric_id) VALUES ('Ethical Practices and Complian
 INSERT INTO indicators (name, metric_id) VALUES ('Ethical Practices and Compliance', 37);
 INSERT INTO indicators (name, metric_id) VALUES ('Ethical Practices and Compliance', 38);
 INSERT INTO indicators (name, metric_id) VALUES ('Ethical Practices and Compliance', 55);
-INSERT INTO indicators (name, metric_id) VALUES ('Environmental and Social Governance (ESG) Standards and Certifications', 61);
-INSERT INTO indicators (name, metric_id) VALUES ('Environmental and Social Governance (ESG) Standards and Certifications', 20);
-INSERT INTO indicators (name, metric_id) VALUES ('Environmental and Social Governance (ESG) Standards and Certifications', 84);
+INSERT INTO indicators (name, metric_id) VALUES ('Certifications', 61);
+INSERT INTO indicators (name, metric_id) VALUES ('Certifications', 20);
+INSERT INTO indicators (name, metric_id) VALUES ('Certifications', 84);
 INSERT INTO indicators (name, metric_id) VALUES ('Labor Relations and Employee Engagement', 92);
 INSERT INTO indicators (name, metric_id) VALUES ('Labor Relations and Employee Engagement', 94);
 INSERT INTO indicators (name, metric_id) VALUES ('Labor Relations and Employee Engagement', 90);

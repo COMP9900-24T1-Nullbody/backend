@@ -101,7 +101,7 @@ class SQL:
             cursor.close()
 
     def data_import(self):
-        files = ["companies", "countries", "metrics", "scores", "others"]
+        files = ["companies", "countries", "metrics", "scores", "others", "indicators"]
         
         if not self.connection:
             print("Error: Not connected to database")
