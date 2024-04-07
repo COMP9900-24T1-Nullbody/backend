@@ -1,5 +1,4 @@
 DROP TABLE IF EXISTS indicator_weights;
-
 CREATE TABLE indicator_weights(
     framework_id INT not NULL,
     indicator_id INT Not NULL,
