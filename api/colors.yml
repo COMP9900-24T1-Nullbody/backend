@@ -1,0 +1,66 @@
+Example endpoint returning a list of colors by palette
+In this example the specification is taken from external YAML file
+---
+parameters:
+  - name: payload
+    in: body
+    required: true
+    schema:
+      type: array
+      items:
+        $ref: '#/definitions/TopIndicator'
+
+responses:
+  200:
+    description: Successful operation
+    schema:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Data processed successfully
+  400:
+    description: Bad request
+    schema:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Invalid data format
+  500:
+    description: Internal server error
+    schema:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Server encountered an error while processing the request
+
+definitions:
+  TopIndicator:
+    type: object
+    properties:
+      topIndicator:
+        type: string
+      description:
+        type: string
+      weight:
+        type: number
+      subIndicators:
+        type: array
+        items:
+          $ref: '#/definitions/SubIndicator'
+
+  SubIndicator:
+    type: object
+    properties:
+      subIndicator:
+        type: string
+      checked:
+        type: boolean
+      description:
+        type: string
+      weight:
+        type: number
+
+
