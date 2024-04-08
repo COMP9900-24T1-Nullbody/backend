@@ -1,3 +1,4 @@
+import json
 import random
 from flask import Flask, jsonify, redirect, request
 from flasgger import Swagger, swag_from
@@ -589,7 +590,7 @@ def get_company_info():
         metrics.description,
         metrics.pillar,
         scores.year,
-        scores.score
+        AVG(scores.score) as score
     FROM scores
     JOIN metrics ON scores.metric_id = metrics.id
     JOIN companies ON scores.company_id = companies.id
@@ -691,6 +692,96 @@ def get_company_info2():
     # 构建返回的 JSON 数据
     return jsonify({"company_info": result})
 
+@app.route("/company_info/v3", methods=["POST"])
+def get_company_info3():
+    data = request.get_json()
+    company_name = data.get("company_name")
+    framework = data.get("framework")
+    
+    esg_weight_query = """
+    SELECT
+        frameworks.E_weight,
+        frameworks.S_weight,
+        frameworks.G_weight
+    FROM frameworks
+    WHERE frameworks.name = %s
+    """
+    esg_weight = sql.query(esg_weight_query, (framework,), fetchall_flag=True)
+    E_weight, S_weight, G_weight = esg_weight[0]
+    
+    info_query = """
+    SELECT
+        indicators.name as indicator_name,
+        indicator_weights.indicator_weight as indicator_weight,
+        metrics.name as metric_name,
+        metric_weights.metric_weight as metric_weight,
+        metrics.description as metric_description,
+        AVG(scores.score) as score
+    FROM scores
+    JOIN companies ON scores.company_id = companies.id
+    JOIN metrics ON scores.metric_id = metrics.id
+    JOIN metric_weights on metric_weights.metric_id = metrics.id
+    LEFT JOIN indicator_metrics ON indicator_metrics.metric_id = metrics.id
+    LEFT JOIN indicators ON indicator_metrics.indicator_id = indicators.id
+    LEFT JOIN indicator_weights ON indicator_weights.indicator_id = indicators.id
+    LEFT JOIN frameworks ON indicator_weights.framework_id = frameworks.id
+    WHERE companies.name = %s AND frameworks.name = %s AND metrics.pillar = %s
+    GROUP BY metrics.pillar, indicators.name, indicator_weights.indicator_weight, metrics.name, metric_weights.metric_weight, metrics.description;
+    """
+
+    E_info = sql.query(info_query, (company_name, framework, "E"), fetchall_flag=True)
+    S_info = sql.query(info_query, (company_name, framework, "S"), fetchall_flag=True)
+    G_info = sql.query(info_query, (company_name, framework, "G"), fetchall_flag=True)
+    
+    E_output = {}
+    S_output = {}
+    G_output = {}
+    
+    for item in E_info:
+        indicator_name, indicator_weight, metric_name, metric_weight, metric_description, score = item
+        if (indicator_name, indicator_weight) not in E_output:
+            E_output[(indicator_name, indicator_weight)] = [(metric_name, metric_weight, metric_description, score)]
+        else:
+            E_output[(indicator_name, indicator_weight)].append((metric_name, metric_weight, metric_description, score))
+
+    for item in S_info:
+        indicator_name, indicator_weight, metric_name, metric_weight, metric_description, score = item
+        if (indicator_name, indicator_weight) not in S_output:
+            S_output[(indicator_name, indicator_weight)] = [(metric_name, metric_weight, metric_description, score)]
+        else:
+            S_output[(indicator_name, indicator_weight)].append((metric_name, metric_weight, metric_description, score))
+
+    for item in G_info:
+        indicator_name, indicator_weight, metric_name, metric_weight, metric_description, score = item
+        if (indicator_name, indicator_weight) not in G_output:
+            G_output[(indicator_name, indicator_weight)] = [(metric_name, metric_weight, metric_description, score)]
+        else:
+            G_output[(indicator_name, indicator_weight)].append((metric_name, metric_weight, metric_description, score))
+    
+    E_indicators = []
+    S_indicators = []
+    G_indicators = []
+    for k, v in E_output.items():
+        name, weight = k
+        description = f"This is {k[0]}"
+        metrics = [{"name": i[0], "weight": i[1], "description": i[2], "score": i[3], "checked": True} for i in v]
+        E_indicators.append({"name": name, "weight": weight, "description": description, "metrics": metrics})
+    
+    for k, v in S_output.items():
+        name, weight = k
+        description = f"This is {k[0]}"
+        metrics = [{"name": i[0], "weight": i[1], "description": i[2], "score": i[3], "checked": True} for i in v]
+        S_indicators.append({"name": name, "weight": weight, "description": description, "metrics": metrics})
+    
+    for k, v in G_output.items():
+        name, weight = k
+        description = f"This is {k[0]}"
+        metrics = [{"name": i[0], "weight": i[1], "description": i[2], "score": i[3], "checked": True} for i in v]
+        G_indicators.append({"name": name, "weight": weight, "description": description, "metrics": metrics})
+    
+    Risks = [{"name": "Environmental Risk", "weight": E_weight, "indicators": E_indicators}, {"name": "Social Risk", "weight": S_weight, "indicators": S_indicators}, {"name": "Governance Risk", "weight": G_weight, "indicators": G_indicators}]
+    
+    return jsonify({"company_name": company_name, "framework": framework, "score": 100, "Risks": Risks})
 
 @app.route("/country/all", methods=["GET"])
 def get_all_countries():
