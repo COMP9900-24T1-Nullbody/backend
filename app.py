@@ -2,7 +2,13 @@ import random
 from flask import Flask, jsonify, redirect, request
 from flasgger import Swagger, swag_from
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
+
+
 import pandas as pd
+
+
+
 
 from utils.data_export import process_pillar_data
 from utils.picbed import ImgurUploader
@@ -17,6 +23,10 @@ import re
 
 app = Flask(__name__)
 CORS(app)
+socketio = SocketIO(app)
+
+
+
 swagger_config = {
     "headers": [],
     "specs": [
@@ -534,15 +544,7 @@ def check_email_exists():
         return jsonify({"message": "Email available"})
 
 
-@app.route("/company/all", methods=["GET"])
-def get_all_companies():
-    companies = sql.query("SELECT name FROM companies", None, True)
-    if  companies:
-        company_names = pd.DataFrame(companies, columns=["name"])
-        json_data = company_names.to_json(orient="records")
-        return jsonify({"message": "Found that", "data": json_data}) 
-    else:
-        return jsonify({"message": "Company name not found"}) 
+
 
 
 
@@ -748,6 +750,93 @@ def get_all_countries():
     return jsonify({"countries": countries})
 
 
+
+
+
+
+
+
+
+
+
+#存入历史记录
+@app.route("/save_history", methods=["POST"])
+def history():
+    data = request.get_json()
+    user_id = data.get("user_id")
+    company_name = data.get("company_name")
+    score = data.get("score")
+    json_data = data.get("json_data")#indicator_name, weights使用json格式存储，直接丢进数据库好了0.0
+
+    #将数据存入数据库
+
+    insert_query = "INSERT INTO history (user_id, company_name, score, json_data) VALUES (%s, %s, %s, %s)"
+    params = (user_id, company_name, score, json_data)
+    insert_query = sql.query(insert_query, params, False)
+    if  insert_query:
+        id = sql.query("SELECT id FROM history WHERE user_id = %s ORDER BY time_stamp DESC LIMIT 1", (user_id,), True)
+        return jsonify({"message": "search history saved", "id": id}) 
+    else:
+        return jsonify({"message": "Unexpected error"})
+
+
+#取出历史记录
+@app.route("/save_history", methods=["POST"])
+def history():
+    data = request.get_json()
+    user_id = data.get("user_id")
+    id = data.get("id")
+
+    history_info = sql.query("SELECT json_data FROM history WHERE id = %s", (id,), True)
+    if  history_info:
+        return jsonify({"message": "history found", "data": history_info}) 
+    else:
+        return jsonify({"message": "history don't exist"})
+
+
+
+
+#搜索框轮询
+@socketio.on('search')
+def get_all_companies_search_bar(query):
+    query = query.lower()  # 将查询字符串转换为小写
+    companies = sql.query("SELECT name FROM companies WHERE LOWER(name) LIKE %s", (f"%{query}%",), True)
+    if  companies:
+        company_names = pd.DataFrame(companies, columns=["name"])
+        json_data = company_names.to_json(orient="records")
+        emit('search_result', {"message": "Found that", "data": json_data})
+    else:
+        emit('search_result', {"message": "Company name not found"})
+
+
+# @app.route("/company/all", methods=["GET"])
+# def get_all_companies():
+#     companies = sql.query("SELECT name FROM companies", None, True)
+#     if  companies:
+#         company_names = pd.DataFrame(companies, columns=["name"])
+#         json_data = company_names.to_json(orient="records")
+#         return jsonify({"message": "Found that", "data": json_data}) 
+#     else:
+#         return jsonify({"message": "Company name not found"}) 
+
+
+#权重设置
+@app.route("/customised_weight_assign", methods=["POST"])
+def customised_weight_assign():
+    data = request.get_json()
+    user_id = data.get("user_id")
+    #这是什么结构体呢？问问
+    E_wight = data.get("E_wight")
+    S_wight = data.get("E_wight")
+    G_wight = data.get("E_wight")
+
+    #计算score
+    #返回score
+    scores=0.0
+
+    return jsonify({"score": score})
+
+
 @app.route("/")
 def index():
     return redirect(swagger_config["specs_route"])
@@ -776,7 +865,10 @@ if __name__ == "__main__":
 
     # Initialize database tables
     sql.initialize()
-    sql.data_import()
+    
 
     # Start Flask application
-    app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+    # app.run(host="0.0.0.0", port=5000, debug=True)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
