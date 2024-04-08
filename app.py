@@ -615,6 +615,124 @@ def get_companies_by_country():
     return jsonify({"companies": companies})
 
 
+# 【暂用】传递需要展示的公司信息
+@app.route("/company_info", methods=["POST"])
+def get_company_info():
+    data = request.get_json()
+    company_name = data.get("company_name")
+
+    if not company_name:
+        return jsonify({"error": "Company name is required"})
+
+    # 构建 SQL 查询语句
+    query = """
+    SELECT 
+        metrics.name,
+        metrics.description,
+        metrics.pillar,
+        scores.year,
+        scores.score
+    FROM scores
+    JOIN metrics ON scores.metric_id = metrics.id
+    JOIN companies ON scores.company_id = companies.id
+    WHERE companies.name = %s
+    """
+    params = (company_name,)
+
+    # 执行查询并获取结果
+    company_info = sql.query(query, params, fetchall_flag=True)
+
+    # 构建返回的 JSON 数据
+    result = [
+        {
+            "metric_name": row[0],
+            "metric_description": row[1],
+            "metric_pillar": row[2],
+            "year": row[3],
+            "score": row[4],
+        }
+        for row in company_info
+    ]
+
+    return jsonify({"company_info": result})
+
+
+# 传递需要展示的公司信息
+@app.route("/company_info/v2", methods=["POST"])
+def get_company_info2():
+    data = request.get_json()
+    company_name = data.get("company_name")
+
+    if not company_name:
+        return jsonify({"error": "Company name is required"})
+
+    # 构建 SQL 查询语句
+    environmental_query = """
+    SELECT 
+        indicators.name as indicator_name,
+        metrics.name as metric_name,
+        metrics.description as metric_description,
+        AVG(scores.score) as score
+    FROM scores
+    JOIN metrics ON scores.metric_id = metrics.id
+    JOIN companies ON scores.company_id = companies.id
+    JOIN indicators ON indicators.metric_id = metrics.id
+    WHERE companies.name = %s and metrics.pillar = 'E'
+    GROUP BY indicators.name, metrics.name, metrics.description
+    """
+
+    social_query = """
+    SELECT 
+        indicators.name as indicator_name,
+        metrics.name as metric_name,
+        metrics.description as metric_description,
+        AVG(scores.score) as score
+    FROM scores
+    JOIN metrics ON scores.metric_id = metrics.id
+    JOIN companies ON scores.company_id = companies.id
+    JOIN indicators ON indicators.metric_id = metrics.id
+    WHERE companies.name = %s and metrics.pillar = 'S'
+    GROUP BY indicators.name, metrics.name, metrics.description
+    """
+
+    governmental_query = """
+    SELECT 
+        indicators.name as indicator_name,
+        metrics.name as metric_name,
+        metrics.description as metric_description,
+        AVG(scores.score) as score
+    FROM scores
+    JOIN metrics ON scores.metric_id = metrics.id
+    JOIN companies ON scores.company_id = companies.id
+    JOIN indicators ON indicators.metric_id = metrics.id
+    WHERE companies.name = %s and metrics.pillar = 'G'
+    GROUP BY indicators.name, metrics.name, metrics.description
+    """ 
+
+    # 执行查询并获取结果
+    company_e_info = sql.query(environmental_query, (company_name,), fetchall_flag=True)
+    company_s_info = sql.query(social_query, (company_name,), fetchall_flag=True)
+    company_g_info = sql.query(governmental_query, (company_name,), fetchall_flag=True)
+
+    print(company_e_info)
+    print(company_s_info)
+    print(company_g_info)
+
+    company_e_dict = []
+    company_s_dict = []
+    company_g_dict = []
+    
+    result = []
+    if company_e_info:
+        result.append(company_e_dict)
+    if company_s_info:
+        result.append(company_s_dict)
+    if company_g_info:
+        result.append(company_g_dict)
+
+    # 构建返回的 JSON 数据
+    return jsonify({"company_info": result})
+
 
 @app.route("/country/all", methods=["GET"])
 def get_all_countries():
