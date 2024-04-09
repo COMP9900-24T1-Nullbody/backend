@@ -73,3 +73,4 @@ INSERT INTO indicator_weights(framework_id,indicator_id,indicator_weight)VALUES
 (4,16,0.5);
 
 
+
