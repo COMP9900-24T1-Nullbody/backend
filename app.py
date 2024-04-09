@@ -761,7 +761,7 @@ def get_all_countries():
 
 #存入历史记录
 @app.route("/save_history", methods=["POST"])
-def history():
+def save_history():
     data = request.get_json()
     user_id = data.get("user_id")
     company_name = data.get("company_name")
@@ -781,13 +781,13 @@ def history():
 
 
 #取出历史记录
-@app.route("/save_history", methods=["POST"])
-def history():
+@app.route("/retrieve_history", methods=["POST"])
+def retrieve_history():
     data = request.get_json()
     user_id = data.get("user_id")
     id = data.get("id")
 
-    history_info = sql.query("SELECT json_data FROM history WHERE id = %s", (id,), True)
+    history_info = sql.query("SELECT json_data,score,company_name FROM history WHERE id = %s", (id,), True)
     if  history_info:
         return jsonify({"message": "history found", "data": history_info}) 
     else:
@@ -796,17 +796,17 @@ def history():
 
 
 
-#搜索框轮询
-@socketio.on('search')
-def get_all_companies_search_bar(query):
-    query = query.lower()  # 将查询字符串转换为小写
-    companies = sql.query("SELECT name FROM companies WHERE LOWER(name) LIKE %s", (f"%{query}%",), True)
-    if  companies:
-        company_names = pd.DataFrame(companies, columns=["name"])
-        json_data = company_names.to_json(orient="records")
-        emit('search_result', {"message": "Found that", "data": json_data})
-    else:
-        emit('search_result', {"message": "Company name not found"})
+# #搜索框轮询
+# @socketio.on('search')
+# def get_all_companies_search_bar(query):
+#     query = query.lower()  # 将查询字符串转换为小写
+#     companies = sql.query("SELECT name FROM companies WHERE LOWER(name) LIKE %s", (f"%{query}%",), True)
+#     if  companies:
+#         company_names = pd.DataFrame(companies, columns=["name"])
+#         json_data = company_names.to_json(orient="records")
+#         emit('search_result', {"message": "Found that", "data": json_data})
+#     else:
+#         emit('search_result', {"message": "Company name not found"})
 
 
 # @app.route("/company/all", methods=["GET"])
@@ -868,7 +868,6 @@ if __name__ == "__main__":
     
 
     # Start Flask application
+    sql.data_import()
 
-
-    # app.run(host="0.0.0.0", port=5000, debug=True)
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
