@@ -795,6 +795,38 @@ def get_all_countries():
     return jsonify({"countries": countries})
 
 
+@app.route("/list/frameworks", methods=["POST"])
+def get_all_frameworks():
+    data = request.get_json()
+    token = data.get("token")
+
+    # 解密token，并获得user_id
+    user_info = decode_token(SECRET_KEY, token)
+    if not user_info:
+        return jsonify({"error": "Invalid token"})
+    user_id = user_info.get("id")
+
+    # SQL 查询语句
+    query = """
+    SELECT
+        name,
+        description
+    FROM frameworks
+    WHERE frameworks.user_id = 0 OR frameworks.user_id = %s;
+    """
+
+    # 执行查询并获取结果
+    frameworks_data = sql.query(query, (user_id,), fetchall_flag=True)
+
+    # 构建返回的 JSON 数据
+    frameworks = [
+        {"name": framework[0], "description": framework[1]}
+        for framework in frameworks_data
+    ]
+
+    return jsonify({"frameworks": frameworks})
+
+
 @app.route("/")
 def index():
     return redirect(swagger_config["specs_route"])
