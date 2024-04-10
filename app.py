@@ -1,4 +1,3 @@
-import json
 import random
 from flask import Flask, jsonify, redirect, request
 from flasgger import Swagger, swag_from
@@ -639,6 +638,7 @@ def get_company_info():
     JOIN metrics ON scores.metric_id = metrics.id
     JOIN companies ON scores.company_id = companies.id
     WHERE companies.name = %s
+    GROUP BY metrics.name, metrics.description, metrics.pillar, scores.year
     """
     params = (company_name,)
 
@@ -710,7 +710,7 @@ def get_company_info2():
     JOIN indicators ON indicators.metric_id = metrics.id
     WHERE companies.name = %s and metrics.pillar = 'G'
     GROUP BY indicators.name, metrics.name, metrics.description
-    """ 
+    """
 
     # 执行查询并获取结果
     company_e_info = sql.query(environmental_query, (company_name,), fetchall_flag=True)
@@ -724,7 +724,7 @@ def get_company_info2():
     company_e_dict = []
     company_s_dict = []
     company_g_dict = []
-    
+
     result = []
     if company_e_info:
         result.append(company_e_dict)
@@ -736,12 +736,13 @@ def get_company_info2():
     # 构建返回的 JSON 数据
     return jsonify({"company_info": result})
 
+
 @app.route("/company_info/v3", methods=["POST"])
 def get_company_info3():
     data = request.get_json()
     company_name = data.get("company_name")
     framework = data.get("framework")
-    
+
     esg_weight_query = """
     SELECT
         frameworks.E_weight,
@@ -752,7 +753,7 @@ def get_company_info3():
     """
     esg_weight = sql.query(esg_weight_query, (framework,), fetchall_flag=True)
     E_weight, S_weight, G_weight = esg_weight[0]
-    
+
     info_query = """
     SELECT
         indicators.name as indicator_name,
@@ -776,60 +777,173 @@ def get_company_info3():
     E_info = sql.query(info_query, (company_name, framework, "E"), fetchall_flag=True)
     S_info = sql.query(info_query, (company_name, framework, "S"), fetchall_flag=True)
     G_info = sql.query(info_query, (company_name, framework, "G"), fetchall_flag=True)
-    
+
     E_output = {}
     S_output = {}
     G_output = {}
-    
+
     for item in E_info:
-        indicator_name, indicator_weight, metric_name, metric_weight, metric_description, score = item
+        (
+            indicator_name,
+            indicator_weight,
+            metric_name,
+            metric_weight,
+            metric_description,
+            score,
+        ) = item
         if (indicator_name, indicator_weight) not in E_output:
-            E_output[(indicator_name, indicator_weight)] = [(metric_name, metric_weight, metric_description, score)]
+            E_output[(indicator_name, indicator_weight)] = [
+                (metric_name, metric_weight, metric_description, score)
+            ]
         else:
-            E_output[(indicator_name, indicator_weight)].append((metric_name, metric_weight, metric_description, score))
+            E_output[(indicator_name, indicator_weight)].append(
+                (metric_name, metric_weight, metric_description, score)
+            )
 
     for item in S_info:
-        indicator_name, indicator_weight, metric_name, metric_weight, metric_description, score = item
+        (
+            indicator_name,
+            indicator_weight,
+            metric_name,
+            metric_weight,
+            metric_description,
+            score,
+        ) = item
         if (indicator_name, indicator_weight) not in S_output:
-            S_output[(indicator_name, indicator_weight)] = [(metric_name, metric_weight, metric_description, score)]
+            S_output[(indicator_name, indicator_weight)] = [
+                (metric_name, metric_weight, metric_description, score)
+            ]
         else:
-            S_output[(indicator_name, indicator_weight)].append((metric_name, metric_weight, metric_description, score))
+            S_output[(indicator_name, indicator_weight)].append(
+                (metric_name, metric_weight, metric_description, score)
+            )
 
     for item in G_info:
-        indicator_name, indicator_weight, metric_name, metric_weight, metric_description, score = item
+        (
+            indicator_name,
+            indicator_weight,
+            metric_name,
+            metric_weight,
+            metric_description,
+            score,
+        ) = item
         if (indicator_name, indicator_weight) not in G_output:
-            G_output[(indicator_name, indicator_weight)] = [(metric_name, metric_weight, metric_description, score)]
+            G_output[(indicator_name, indicator_weight)] = [
+                (metric_name, metric_weight, metric_description, score)
+            ]
         else:
-            G_output[(indicator_name, indicator_weight)].append((metric_name, metric_weight, metric_description, score))
-    
+            G_output[(indicator_name, indicator_weight)].append(
+                (metric_name, metric_weight, metric_description, score)
+            )
+
     E_indicators = []
     S_indicators = []
     G_indicators = []
+
+    E_scores = []
+    S_scores = []
+    G_scores = []
+
     for k, v in E_output.items():
         name, weight = k
         description = f"This is {k[0]}"
-        metrics = [{"name": i[0], "weight": i[1], "description": i[2], "score": i[3], "checked": True} for i in v]
-        E_indicators.append({"name": name, "weight": weight, "description": description, "metrics": metrics})
-    
+        metrics = [
+            {
+                "name": i[0],
+                "weight": i[1],
+                "description": i[2],
+                "score": float(i[3]),
+                "checked": True,
+            }
+            for i in v
+        ]
+
+        sum_weights = sum(i[1] for i in v)
+        sum_scores = sum(float(i[1]) * float(i[3]) for i in v)
+        E_scores.append((sum_scores / sum_weights) * k[1])
+
+        E_indicators.append(
+            {
+                "name": name,
+                "weight": weight,
+                "description": description,
+                "metrics": metrics,
+            }
+        )
+
     for k, v in S_output.items():
         name, weight = k
         description = f"This is {k[0]}"
-        metrics = [{"name": i[0], "weight": i[1], "description": i[2], "score": i[3], "checked": True} for i in v]
-        S_indicators.append({"name": name, "weight": weight, "description": description, "metrics": metrics})
-    
+        metrics = [
+            {
+                "name": i[0],
+                "weight": i[1],
+                "description": i[2],
+                "score": float(i[3]),
+                "checked": True,
+            }
+            for i in v
+        ]
+
+        sum_weights = sum(i[1] for i in v)
+        sum_scores = sum(float(i[1]) * float(i[3]) for i in v)
+        S_scores.append((sum_scores / sum_weights) * k[1])
+
+        S_indicators.append(
+            {
+                "name": name,
+                "weight": weight,
+                "description": description,
+                "metrics": metrics,
+            }
+        )
+
     for k, v in G_output.items():
         name, weight = k
         description = f"This is {k[0]}"
-        metrics = [{"name": i[0], "weight": i[1], "description": i[2], "score": i[3], "checked": True} for i in v]
-        G_indicators.append({"name": name, "weight": weight, "description": description, "metrics": metrics})
-    
-    Risks = [{"name": "Environmental Risk", "weight": E_weight, "indicators": E_indicators}, {"name": "Social Risk", "weight": S_weight, "indicators": S_indicators}, {"name": "Governance Risk", "weight": G_weight, "indicators": G_indicators}]
-    
-    
+        metrics = [
+            {
+                "name": i[0],
+                "weight": i[1],
+                "description": i[2],
+                "score": float(i[3]),
+                "checked": True,
+            }
+            for i in v
+        ]
 
+        sum_weights = sum(i[1] for i in v)
+        sum_scores = sum(float(i[1]) * float(i[3]) for i in v)
+        G_scores.append((sum_scores / sum_weights) * k[1])
 
+        G_indicators.append(
+            {
+                "name": name,
+                "weight": weight,
+                "description": description,
+                "metrics": metrics,
+            }
+        )
 
-    return jsonify({"company_name": company_name, "framework": framework, "score": 100, "Risks": Risks})
+    Risks = [
+        {"name": "Environmental Risk", "weight": E_weight, "indicators": E_indicators},
+        {"name": "Social Risk", "weight": S_weight, "indicators": S_indicators},
+        {"name": "Governance Risk", "weight": G_weight, "indicators": G_indicators},
+    ]
+
+    final_score = (
+        sum(E_scores) * E_weight + sum(S_scores) * S_weight + sum(G_scores) * G_weight
+    ) / (E_weight + S_weight + G_weight)
+
+    return jsonify(
+        {
+            "company_name": company_name,
+            "framework": framework,
+            "score": final_score,
+            "Risks": Risks,
+        }
+    )
+
 
 @app.route("/country/all", methods=["GET"])
 def get_all_countries():
