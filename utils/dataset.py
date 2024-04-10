@@ -67,7 +67,7 @@ class SQL:
 
         cursor = self.connection.cursor()
         try:
-            initialize_sql_path = "sql\initialize.sql"
+            initialize_sql_path = r"sql\initialize.sql"
             with open(initialize_sql_path, "r", encoding="utf-8") as sql_file:
                 sql_queries = sql_file.read()
                 cursor.execute(sql_queries)
@@ -119,8 +119,17 @@ class SQL:
             cursor.close()
 
     def data_import(self):
-        files = ["companies", "countries", "metrics", "scores", "others", "indicators", "framework",
-                  "indicator_weights", "metric_weights", "weight1","history"]
+        files = ["companies", 
+                 "countries", 
+                 "frameworks",
+                 "history",
+                 "indicator_weights", 
+                 "indicators", 
+                 "metric_weights", 
+                 "metrics", 
+                 "others", 
+                 "scores", 
+                 "weights"]
         
         if not self.connection:
             print("Error: Not connected to database")

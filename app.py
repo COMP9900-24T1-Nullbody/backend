@@ -825,6 +825,10 @@ def get_company_info3():
     
     Risks = [{"name": "Environmental Risk", "weight": E_weight, "indicators": E_indicators}, {"name": "Social Risk", "weight": S_weight, "indicators": S_indicators}, {"name": "Governance Risk", "weight": G_weight, "indicators": G_indicators}]
     
+    
+
+
+
     return jsonify({"company_name": company_name, "framework": framework, "score": 100, "Risks": Risks})
 
 @app.route("/country/all", methods=["GET"])
@@ -885,47 +889,47 @@ def retrieve_history():
         return jsonify({"message": "history don't exist"})
 
 
-
-
-# #搜索框轮询
-# @socketio.on('search')
-# def get_all_companies_search_bar(query):
-#     query = query.lower()  # 将查询字符串转换为小写
-#     companies = sql.query("SELECT name FROM companies WHERE LOWER(name) LIKE %s", (f"%{query}%",), True)
-#     if  companies:
-#         company_names = pd.DataFrame(companies, columns=["name"])
-#         json_data = company_names.to_json(orient="records")
-#         emit('search_result', {"message": "Found that", "data": json_data})
-#     else:
-#         emit('search_result', {"message": "Company name not found"})
-
-
-# @app.route("/company/all", methods=["GET"])
-# def get_all_companies():
-#     companies = sql.query("SELECT name FROM companies", None, True)
-#     if  companies:
-#         company_names = pd.DataFrame(companies, columns=["name"])
-#         json_data = company_names.to_json(orient="records")
-#         return jsonify({"message": "Found that", "data": json_data}) 
-#     else:
-#         return jsonify({"message": "Company name not found"}) 
-
-
-#权重设置
+#选中公司，自定义权重，调用计算score，存入history是可选项吗
 @app.route("/customised_weight_assign", methods=["POST"])
 def customised_weight_assign():
     data = request.get_json()
     user_id = data.get("user_id")
-    #这是什么结构体呢？问问
+
     E_wight = data.get("E_wight")
     S_wight = data.get("E_wight")
     G_wight = data.get("E_wight")
+
+    E_indicators = data.get("E_indicators")
+    S_indicators = data.get("S_indicators")
+    G_indicators = data.get("G_indicators")
+    if G_indicators:
+        # Access nested fields in G_indicators
+        indicator_name = G_indicators.get("indicator_name") #列表
+        indicator_weight = G_indicators.get("indicator_weight") #列表
+        metrics = G_indicators.get("metrics") #嵌套列表
+        for i in metrics
+        
+        
+        # Use field_value in your code
+    
+
+    
+    query = "INSERT INTO company_info (perm_id, metric_value_id, company_name, headquarter_country) VALUES (%s, %s, %s, %s)"
+    params = list(zip(perm_id, metric_value_id, company_name, headquarter_country))
+    sql.query_many(query, params)
 
     #计算score
     #返回score
     scores=0.0
 
     return jsonify({"score": score})
+
+
+
+
+
+
+
 
 
 @app.route("/")
