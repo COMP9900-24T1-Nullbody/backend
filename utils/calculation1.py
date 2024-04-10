@@ -64,7 +64,7 @@ def calculate_framework_score(indicators, indicator_scores):
     S_score = S_score_sum / total_S_weight if total_S_weight != 0 else 0
     G_score = G_score_sum / total_G_weight if total_G_weight != 0 else 0
 
-    esg_weight_query = "SELECT E_weight, S_weight, G_weight FROM framework WHERE framework_name = %s"
+    esg_weight_query = "SELECT E_weight, S_weight, G_weight FROM frameworks WHERE frameworks.name = %s"
     cur.execute(esg_weight_query, ("Your_Framework_Name",))
     esg_weights = cur.fetchall()
 
