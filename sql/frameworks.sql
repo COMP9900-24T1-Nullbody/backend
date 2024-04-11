@@ -3,7 +3,7 @@ CREATE TABLE frameworks (
     id SERIAL PRIMARY KEY,
     user_id INT NOT NULL,
     name VARCHAR(255) NOT NULL,
-    description VARCHAR(255),
+    description TEXT NOT NULL,
     E_weight FLOAT NOT NULL,
     S_weight FLOAT NOT NULL,
     G_weight FLOAT NOT NULL

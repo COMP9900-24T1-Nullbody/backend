@@ -1,25 +1,27 @@
 DROP TABLE IF EXISTS indicators;
 CREATE TABLE indicators (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL
+    user_id INT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL
 );
 
-INSERT INTO indicators (name) VALUES ('Carbon Emissions and Air Pollutants');
-INSERT INTO indicators (name) VALUES ('Energy Consumption and Electricity Consumption');
-INSERT INTO indicators (name) VALUES ('Renewable Energy and Waste');
-INSERT INTO indicators (name) VALUES ('Water Withdrawal and Sustainable Practices');
-INSERT INTO indicators (name) VALUES ('Biodiversity and Climate Change Management');
-INSERT INTO indicators (name) VALUES ('Human Rights and Gender Equality');
-INSERT INTO indicators (name) VALUES ('Employee Well-being and Safety');
-INSERT INTO indicators (name) VALUES ('Ethical Practices and Compliance');
-INSERT INTO indicators (name) VALUES ('Certifications');
-INSERT INTO indicators (name) VALUES ('Labor Relations and Employee Engagement');
-INSERT INTO indicators (name) VALUES ('Corporate Social Responsibility (CSR) and Diversity');
-INSERT INTO indicators (name) VALUES ('Board Structure and Independence');
-INSERT INTO indicators (name) VALUES ('Audit, Compliance, and Risk Management');
-INSERT INTO indicators (name) VALUES ('Compensation Policy and Performance Incentives');
-INSERT INTO indicators (name) VALUES ('Transparency and Accountability');
-INSERT INTO indicators (name) VALUES ('Shareholder Rights and Corporate Governance');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Carbon Emissions and Air Pollutants', 'Description for Carbon Emissions and Air Pollutants');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Energy Consumption and Electricity Consumption', 'Description for Energy Consumption and Electricity Consumption');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Renewable Energy and Waste', 'Description for Renewable Energy and Waste');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Water Withdrawal and Sustainable Practices', 'Description for Water Withdrawal and Sustainable Practices');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Biodiversity and Climate Change Management', 'Description for Biodiversity and Climate Change Management');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Human Rights and Gender Equality', 'Description for Human Rights and Gender Equality');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Employee Well-being and Safety', 'Description for Employee Well-being and Safety');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Ethical Practices and Compliance', 'Description for Ethical Practices and Compliance');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Certifications', 'Description for Certifications');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Labor Relations and Employee Engagement', 'Description for Labor Relations and Employee Engagement');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Corporate Social Responsibility (CSR) and Diversity', 'Description for Corporate Social Responsibility (CSR) and Diversity');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Board Structure and Independence', 'Description for Board Structure and Independence');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Audit, Compliance, and Risk Management', 'Description for Audit, Compliance, and Risk Management');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Compensation Policy and Performance Incentives', 'Description for Compensation Policy and Performance Incentives');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Transparency and Accountability', 'Description for Transparency and Accountability');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Shareholder Rights and Corporate Governance', 'Description for Shareholder Rights and Corporate Governance');
 
 
 DROP TABLE IF EXISTS indicator_metrics;
