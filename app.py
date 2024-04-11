@@ -594,6 +594,7 @@ def get_company_info3():
     SELECT
         indicators.name as indicator_name,
         indicator_weights.indicator_weight as indicator_weight,
+        indicators.description as indicator_description,
         metrics.name as metric_name,
         metric_weights.metric_weight as metric_weight,
         metrics.description as metric_description,
@@ -607,7 +608,7 @@ def get_company_info3():
     LEFT JOIN indicator_weights ON indicator_weights.indicator_id = indicators.id
     LEFT JOIN frameworks ON indicator_weights.framework_id = frameworks.id
     WHERE companies.name = %s AND frameworks.name = %s AND metrics.pillar = %s
-    GROUP BY metrics.pillar, indicators.name, indicator_weights.indicator_weight, metrics.name, metric_weights.metric_weight, metrics.description;
+    GROUP BY metrics.pillar, indicators.name, indicator_weights.indicator_weight, indicators.description, metrics.name, metric_weights.metric_weight, metrics.description;
     """
 
     E_info = sql.query(info_query, (company_name, framework, "E"), fetchall_flag=True)
@@ -622,17 +623,18 @@ def get_company_info3():
         (
             indicator_name,
             indicator_weight,
+            indicator_description,
             metric_name,
             metric_weight,
             metric_description,
             score,
         ) = item
         if (indicator_name, indicator_weight) not in E_output:
-            E_output[(indicator_name, indicator_weight)] = [
+            E_output[(indicator_name, indicator_weight, indicator_description)] = [
                 (metric_name, metric_weight, metric_description, score)
             ]
         else:
-            E_output[(indicator_name, indicator_weight)].append(
+            E_output[(indicator_name, indicator_weight, indicator_description)].append(
                 (metric_name, metric_weight, metric_description, score)
             )
 
@@ -640,17 +642,18 @@ def get_company_info3():
         (
             indicator_name,
             indicator_weight,
+            indicator_description,
             metric_name,
             metric_weight,
             metric_description,
             score,
         ) = item
         if (indicator_name, indicator_weight) not in S_output:
-            S_output[(indicator_name, indicator_weight)] = [
+            S_output[(indicator_name, indicator_weight, indicator_description)] = [
                 (metric_name, metric_weight, metric_description, score)
             ]
         else:
-            S_output[(indicator_name, indicator_weight)].append(
+            S_output[(indicator_name, indicator_weight, indicator_description)].append(
                 (metric_name, metric_weight, metric_description, score)
             )
 
@@ -658,17 +661,18 @@ def get_company_info3():
         (
             indicator_name,
             indicator_weight,
+            indicator_description,
             metric_name,
             metric_weight,
             metric_description,
             score,
         ) = item
         if (indicator_name, indicator_weight) not in G_output:
-            G_output[(indicator_name, indicator_weight)] = [
+            G_output[(indicator_name, indicator_weight, indicator_description)] = [
                 (metric_name, metric_weight, metric_description, score)
             ]
         else:
-            G_output[(indicator_name, indicator_weight)].append(
+            G_output[(indicator_name, indicator_weight, indicator_description)].append(
                 (metric_name, metric_weight, metric_description, score)
             )
 
@@ -681,8 +685,7 @@ def get_company_info3():
     G_scores = []
 
     for k, v in E_output.items():
-        name, weight = k
-        description = f"This is {k[0]}"
+        name, weight, description = k
         metrics = [
             {
                 "name": i[0],
@@ -708,8 +711,7 @@ def get_company_info3():
         )
 
     for k, v in S_output.items():
-        name, weight = k
-        description = f"This is {k[0]}"
+        name, weight, description = k
         metrics = [
             {
                 "name": i[0],
@@ -735,8 +737,7 @@ def get_company_info3():
         )
 
     for k, v in G_output.items():
-        name, weight = k
-        description = f"This is {k[0]}"
+        name, weight, description = k
         metrics = [
             {
                 "name": i[0],
@@ -825,6 +826,164 @@ def get_all_frameworks():
     ]
 
     return jsonify({"frameworks": frameworks})
+
+
+@app.route("/list/metrics", methods=["POST"])
+def get_all_E_metrics():
+    data = request.get_json()
+    pillar = data.get("pillar")
+
+    # SQL 查询语句
+    query = """
+    SELECT 
+        name
+    FROM metrics
+    WHERE metrics.pillar = %s;
+    """
+
+    # 执行查询并获取结果
+    metrics_data = sql.query(query, (pillar,), fetchall_flag=True)
+    metrics_list = [
+        metric[0] for metric in metrics_data
+    ]  # 使用列表推导式提取内部字符串元素
+
+    return jsonify({"metrics": metrics_list})
+
+
+@app.route("/create/framework", methods=["POST"])
+def create_framework():
+    data = request.get_json()
+    token = data.get("token")
+    framework_info = data.get("framework_info")
+
+    # 解密token，并获得user_id
+    user_info = decode_token(SECRET_KEY, token)
+    if not user_info:
+        return jsonify({"error": "Invalid token"})
+    user_id = user_info.get("id")
+
+    framework_name = framework_info.get("name")
+    framework_description = framework_info.get("description")
+    E_weight, S_weight, G_weight = (
+        framework_info.get("E_weight"),
+        framework_info.get("S_weight"),
+        framework_info.get("G_weight"),
+    )
+    E_indicators, S_indicators, G_indicators = (
+        framework_info.get("E_indicators"),
+        framework_info.get("S_indicators"),
+        framework_info.get("G_indicators"),
+    )
+
+    # 创建framework
+    query = "INSERT INTO frameworks (user_id, name, description, E_weight, S_weight, G_weight) VALUES (%s, %s, %s, %s, %s, %s)"
+    params = (
+        user_id,
+        framework_name,
+        framework_description,
+        E_weight,
+        S_weight,
+        G_weight,
+    )
+    sql.query(query, params, True)
+
+    # 获取创建的framework id
+    query = "SELECT id FROM frameworks WHERE user_id = %s AND name = %s"
+    params = (user_id, framework_name)
+    framework_id = sql.query(query, params, False)
+
+    # 创建indicators
+    for indicator in E_indicators:
+        # 创建indicator
+        query = (
+            "INSERT INTO indicators (user_id, name, description) VALUES (%s, %s, %s)"
+        )
+        params = (user_id, indicator["name"], indicator["description"])
+        sql.query(query, params, True)
+        # 获取indicator id
+        query = "SELECT id FROM indicators WHERE user_id = %s AND name = %s"
+        params = (user_id, indicator["name"])
+        indicator_id = sql.query(query, params, False)
+        # 插入到indicator_weights
+        query = "INSERT INTO indicator_weights (framework_id, indicator_id, indicator_weight) VALUES (%s, %s, %s)"
+        params = (framework_id, indicator_id, indicator["weight"])
+        sql.query(query, params, True)
+        for metric in indicator["metrics"]:
+            # 获取metric id
+            query = "SELECT id FROM metrics WHERE name = %s"
+            params = (metric["name"],)
+            metric_id = sql.query(query, params, False)
+            # 插入到metric_weights
+            query = "INSERT INTO metric_weights (indicator_id, metric_id, metric_weight) VALUES (%s, %s, %s)"
+            params = (indicator_id, metric_id, metric["weight"])
+            sql.query(query, params, True)
+            # 插入到indicator_metrics
+            query = "INSERT INTO indicator_metrics (indicator_id, metric_id) VALUES (%s, %s)"
+            params = (indicator_id, metric_id)
+            sql.query(query, params, True)
+    for indicator in S_indicators:
+        # 创建indicator
+        query = (
+            "INSERT INTO indicators (user_id, name, description) VALUES (%s, %s, %s)"
+        )
+        params = (user_id, indicator["name"], indicator["description"])
+        sql.query(query, params, True)
+        # 获取indicator id
+        query = "SELECT id FROM indicators WHERE user_id = %s AND name = %s"
+        params = (user_id, indicator["name"])
+        indicator_id = sql.query(query, params, False)
+        # 插入到indicator_weights
+        query = "INSERT INTO indicator_weights (framework_id, indicator_id, indicator_weight) VALUES (%s, %s, %s)"
+        params = (framework_id, indicator_id, indicator["weight"])
+        sql.query(query, params, True)
+        for metric in indicator["metrics"]:
+            # 获取metric id
+            query = "SELECT id FROM metrics WHERE name = %s"
+            params = (metric["name"],)
+            metric_id = sql.query(query, params, False)
+            # 插入到metric_weights
+            query = "INSERT INTO metric_weights (indicator_id, metric_id, metric_weight) VALUES (%s, %s, %s)"
+            params = (indicator_id, metric_id, metric["weight"])
+            sql.query(query, params, True)
+            # 插入到indicator_metrics
+            query = "INSERT INTO indicator_metrics (indicator_id, metric_id) VALUES (%s, %s)"
+            params = (indicator_id, metric_id)
+            sql.query(query, params, True)
+    for indicator in G_indicators:
+        # 创建indicator
+        query = (
+            "INSERT INTO indicators (user_id, name, description) VALUES (%s, %s, %s)"
+        )
+        params = (user_id, indicator["name"], indicator["description"])
+        sql.query(query, params, True)
+        # 获取indicator id
+        query = "SELECT id FROM indicators WHERE user_id = %s AND name = %s"
+        params = (user_id, indicator["name"])
+        indicator_id = sql.query(query, params, False)
+        # 插入到indicator_weights
+        query = "INSERT INTO indicator_weights (framework_id, indicator_id, indicator_weight) VALUES (%s, %s, %s)"
+        params = (framework_id, indicator_id, indicator["weight"])
+        sql.query(query, params, True)
+        for metric in indicator["metrics"]:
+            # 获取metric id
+            query = "SELECT id FROM metrics WHERE name = %s"
+            params = (metric["name"],)
+            metric_id = sql.query(query, params, False)
+            # 插入到metric_weights
+            query = "INSERT INTO metric_weights (indicator_id, metric_id, metric_weight) VALUES (%s, %s, %s)"
+            params = (indicator_id, metric_id, metric["weight"])
+            sql.query(query, params, True)
+            # 插入到indicator_metrics
+            query = "INSERT INTO indicator_metrics (indicator_id, metric_id) VALUES (%s, %s)"
+            params = (indicator_id, metric_id)
+            sql.query(query, params, True)
+
+    return jsonify({"message": "Framework created!"})
+
+
+@app.route("/save/analysis", methods=["POST"])
+def save_analysis():
+    return jsonify({"message": "Analysis saved"})
 
 
 @app.route("/")
