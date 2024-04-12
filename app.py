@@ -860,6 +860,35 @@ def get_all_customized_frameworks():
     return jsonify({"frameworks": frameworks})
 
 
+@app.route("/list/favourite_companies", methods=["POST"])
+def get_all_favourited_companies():
+    data = request.get_json()
+    token = data.get("token")
+
+    # 解密token，并获得user_id
+    user_info = decode_token(SECRET_KEY, token)
+    if not user_info:
+        return jsonify({"error": "Invalid token"})
+    user_id = user_info.get("id")
+
+    # SQL 查询语句
+    query = """
+    SELECT
+        companies.name as company_name
+    FROM favourites
+    JOIN companies on favourites.company_id = companies.id
+    WHERE favourites.user_id = %s;
+    """
+
+    # 执行查询并获取结果
+    favourites_data = sql.query(query, (user_id,), fetchall_flag=True)
+
+    # 构建返回的 JSON 数据
+    favourites = [{"name": favourite[0]} for favourite in favourites_data]
+
+    return jsonify({"favourites": favourites})
+
+
 @app.route("/list/metrics", methods=["POST"])
 def get_all_E_metrics():
     data = request.get_json()
@@ -1013,6 +1042,39 @@ def create_framework():
     return jsonify({"message": "Framework created!"})
 
 
+@app.route("/create/favourite_company", methods=["POST"])
+def create_favourite_company():
+    data = request.get_json()
+    token = data.get("token")
+    company_name = data.get("company_name")
+
+    # 解密token，并获得user_id
+    user_info = decode_token(SECRET_KEY, token)
+    if not user_info:
+        return jsonify({"error": "Invalid token"})
+    user_id = user_info.get("id")
+    
+    # 获取company_id
+    query = """
+    SELECT
+        id
+    FROM companies
+    WHERE companies.name = %s;
+    """
+    params = (company_name,)
+    company_id = sql.query(query, params, False)
+    
+
+    # 创建favourites
+    query = """
+    INSERT INTO favourites (user_id, company_id) VALUES (%s, %s);
+    """
+    params = (user_id, company_id)
+    sql.query(query, params, True)
+
+    return jsonify({"message": "Add company to favourites success!"})
+
+
 @app.route("/delete/customized_framework", methods=["POST"])
 def delete_customized_framework():
     data = request.get_json()
@@ -1064,6 +1126,35 @@ def delete_customized_framework():
     sql.query(query, params, True)
 
     return jsonify({"message": "Framework deleted!"})
+
+
+@app.route("/delete/favourite_company", methods=["POST"])
+def delete_favourite_company():
+    data = request.get_json()
+    token = data.get("token")
+    company_name = data.get("company_name")
+
+    # 解密token，并获得user_id
+    user_info = decode_token(SECRET_KEY, token)
+    if not user_info:
+        return jsonify({"error": "Invalid token"})
+    user_id = user_info.get("id")
+
+    # 删除favourites里面的相关信息
+    query = """
+    DELETE FROM favourites
+    USING companies
+    WHERE favourites.company_id = companies.id
+    AND companies.name = %s
+    AND favourites.user_id = %s;
+    """
+    params = (
+        company_name,
+        user_id,
+    )
+    sql.query(query, params, True)
+
+    return jsonify({"message": "Favourite company deleted!"})
 
 
 @app.route("/save/analysis", methods=["POST"])
