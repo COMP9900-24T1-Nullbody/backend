@@ -14,7 +14,3 @@ INSERT INTO frameworks (user_id, name, description, E_weight, S_weight, G_weight
 (0, 'TCFD', 'Task Force on Climate-related Financial Disclosures', 0.3, 0.4, 0.6),
 (0, 'TNFD', 'Task Force on Nature-related Financial Disclosures', 0.5, 0.5, 0.2),
 (0, 'APRA-CPG', 'Australian Prudential Regulation Authority - Corporate Governance Practice Guide', 0.3, 0.6, 0.7);
-
--- Test data
-INSERT INTO frameworks (user_id, name, description, E_weight, S_weight, G_weight) VALUES
-(1, 'Customized_IFRS', 'International Financial Reporting Standards', 0.8, 0.5, 0.1);

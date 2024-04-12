@@ -532,6 +532,7 @@ def check_email_exists():
     else:
         return jsonify({"message": "Email available"})
 
+
 @app.route("/company/by_country", methods=["POST"])
 def get_companies_by_country():
     # 获取请求中的JSON数据
@@ -590,7 +591,8 @@ def get_company_info3():
     JOIN indicator_weights ON indicator_weights.indicator_id = indicators.id
     JOIN frameworks ON indicator_weights.framework_id = frameworks.id
     WHERE companies.name = %s AND frameworks.name = %s AND metrics.pillar = %s
-    GROUP BY metrics.pillar, indicators.name, indicator_weights.indicator_weight, indicators.description, metrics.name, metric_weights.metric_weight, metrics.description;
+    GROUP BY metrics.pillar, frameworks.id, indicators.id, indicators.name, indicator_weights.framework_id, indicator_weights.indicator_weight, indicators.description, metrics.name, metric_weights.indicator_id, metric_weights.metric_weight, metrics.description
+    HAVING indicators.id = metric_weights.indicator_id AND frameworks.id = indicator_weights.framework_id;
     """
 
     E_info = sql.query(info_query, (company_name, framework, "E"), fetchall_flag=True)
@@ -759,6 +761,273 @@ def get_company_info3():
             "company_name": company_name,
             "framework": framework,
             "score": final_score,
+            "Risks": Risks,
+        }
+    )
+
+
+@app.route("/compare_company_info/v3", methods=["POST"])
+def compare_company_info_v3():
+    data = request.get_json()
+    company_1_name = data.get("company_1_name")
+    company_2_name = data.get("company_2_name")
+    framework = data.get("framework")
+
+    esg_weight_query = """
+    SELECT
+        frameworks.E_weight,
+        frameworks.S_weight,
+        frameworks.G_weight
+    FROM frameworks
+    WHERE frameworks.name = %s
+    """
+    esg_weight = sql.query(esg_weight_query, (framework,), fetchall_flag=True)
+    E_weight, S_weight, G_weight = esg_weight[0]
+
+    info_query = """
+    SELECT *
+    FROM (
+        SELECT
+            indicators.name as indicator_name,
+            indicator_weights.indicator_weight as indicator_weight,
+            indicators.description as indicator_description,
+            metrics.name as metric_name,
+            metric_weights.metric_weight as metric_weight,
+            metrics.description as metric_description,
+            AVG(CASE WHEN companies.name = %s THEN scores.score ELSE NULL END) as company_1_score,
+            AVG(CASE WHEN companies.name = %s THEN scores.score ELSE NULL END) as company_2_score
+        FROM scores
+        JOIN companies ON scores.company_id = companies.id
+        JOIN metrics ON scores.metric_id = metrics.id
+        JOIN metric_weights on metric_weights.metric_id = metrics.id
+        JOIN indicator_metrics ON indicator_metrics.metric_id = metrics.id
+        JOIN indicators ON indicator_metrics.indicator_id = indicators.id
+        JOIN indicator_weights ON indicator_weights.indicator_id = indicators.id
+        JOIN frameworks ON indicator_weights.framework_id = frameworks.id
+        WHERE (companies.name = %s OR companies.name = %s) AND frameworks.name = %s AND metrics.pillar = %s
+        GROUP BY metrics.pillar, frameworks.id, indicators.id, indicators.name, indicator_weights.framework_id, indicator_weights.indicator_weight, indicators.description, metrics.name, metric_weights.indicator_id, metric_weights.metric_weight, metrics.description
+        HAVING indicators.id = metric_weights.indicator_id AND frameworks.id = indicator_weights.framework_id
+    ) AS subquery
+    WHERE company_1_score != 0 AND company_2_score != 0;
+    """
+
+    E_info = sql.query(
+        info_query,
+        (
+            company_1_name,
+            company_2_name,
+            company_1_name,
+            company_2_name,
+            framework,
+            "E",
+        ),
+        fetchall_flag=True,
+    )
+    S_info = sql.query(
+        info_query,
+        (
+            company_1_name,
+            company_2_name,
+            company_1_name,
+            company_2_name,
+            framework,
+            "S",
+        ),
+        fetchall_flag=True,
+    )
+    G_info = sql.query(
+        info_query,
+        (
+            company_1_name,
+            company_2_name,
+            company_1_name,
+            company_2_name,
+            framework,
+            "G",
+        ),
+        fetchall_flag=True,
+    )
+
+    E_output = {}
+    S_output = {}
+    G_output = {}
+
+    for item in E_info:
+        (
+            indicator_name,
+            indicator_weight,
+            indicator_description,
+            metric_name,
+            metric_weight,
+            metric_description,
+            score_1,
+            score_2,
+        ) = item
+        if (indicator_name, indicator_weight, indicator_description) not in E_output:
+            E_output[(indicator_name, indicator_weight, indicator_description)] = [
+                (metric_name, metric_weight, metric_description, score_1, score_2)
+            ]
+        else:
+            E_output[(indicator_name, indicator_weight, indicator_description)].append(
+                (metric_name, metric_weight, metric_description, score_1, score_2)
+            )
+
+    for item in S_info:
+        (
+            indicator_name,
+            indicator_weight,
+            indicator_description,
+            metric_name,
+            metric_weight,
+            metric_description,
+            score_1,
+            score_2,
+        ) = item
+        if (indicator_name, indicator_weight, indicator_description) not in S_output:
+            S_output[(indicator_name, indicator_weight, indicator_description)] = [
+                (metric_name, metric_weight, metric_description, score_1, score_2)
+            ]
+        else:
+            S_output[(indicator_name, indicator_weight, indicator_description)].append(
+                (metric_name, metric_weight, metric_description, score_1, score_2)
+            )
+
+    for item in G_info:
+        (
+            indicator_name,
+            indicator_weight,
+            indicator_description,
+            metric_name,
+            metric_weight,
+            metric_description,
+            score_1,
+            score_2,
+        ) = item
+        if (indicator_name, indicator_weight, indicator_description) not in G_output:
+            G_output[(indicator_name, indicator_weight, indicator_description)] = [
+                (metric_name, metric_weight, metric_description, score_1, score_2)
+            ]
+        else:
+            G_output[(indicator_name, indicator_weight, indicator_description)].append(
+                (metric_name, metric_weight, metric_description, score_1, score_2)
+            )
+
+    E_indicators, S_indicators, G_indicators = [], [], []
+
+    E_scores_1, S_scores_1, G_scores_1 = [], [], []
+    E_scores_2, S_scores_2, G_scores_2 = [], [], []
+
+    for k, v in E_output.items():
+        name, weight, description = k
+        metrics = [
+            {
+                "name": i[0],
+                "weight": i[1],
+                "description": i[2],
+                "score_1": float(i[3]),
+                "score_2": float(i[4]),
+                "checked": True,
+            }
+            for i in v
+        ]
+
+        sum_weights = sum(i[1] for i in v)
+        sum_scores_1 = sum(float(i[1]) * float(i[3]) for i in v)
+        sum_scores_2 = sum(float(i[1]) * float(i[4]) for i in v)
+        E_scores_1.append((sum_scores_1 / sum_weights) * k[1])
+        E_scores_2.append((sum_scores_2 / sum_weights) * k[1])
+
+        E_indicators.append(
+            {
+                "name": name,
+                "weight": weight,
+                "description": description,
+                "metrics": metrics,
+            }
+        )
+
+    for k, v in S_output.items():
+        name, weight, description = k
+        metrics = [
+            {
+                "name": i[0],
+                "weight": i[1],
+                "description": i[2],
+                "score_1": float(i[3]),
+                "score_2": float(i[4]),
+                "checked": True,
+            }
+            for i in v
+        ]
+
+        sum_weights = sum(i[1] for i in v)
+        sum_scores_1 = sum(float(i[1]) * float(i[3]) for i in v)
+        sum_scores_2 = sum(float(i[1]) * float(i[4]) for i in v)
+        S_scores_1.append((sum_scores_1 / sum_weights) * k[1])
+        S_scores_2.append((sum_scores_2 / sum_weights) * k[1])
+
+        S_indicators.append(
+            {
+                "name": name,
+                "weight": weight,
+                "description": description,
+                "metrics": metrics,
+            }
+        )
+
+    for k, v in G_output.items():
+        name, weight, description = k
+        metrics = [
+            {
+                "name": i[0],
+                "weight": i[1],
+                "description": i[2],
+                "score_1": float(i[3]),
+                "score_2": float(i[4]),
+                "checked": True,
+            }
+            for i in v
+        ]
+
+        sum_weights = sum(i[1] for i in v)
+        sum_scores_1 = sum(float(i[1]) * float(i[3]) for i in v)
+        sum_scores_2 = sum(float(i[1]) * float(i[4]) for i in v)
+        G_scores_1.append((sum_scores_1 / sum_weights) * k[1])
+        G_scores_2.append((sum_scores_2 / sum_weights) * k[1])
+
+        G_indicators.append(
+            {
+                "name": name,
+                "weight": weight,
+                "description": description,
+                "metrics": metrics,
+            }
+        )
+
+    Risks = [
+        {"name": "Environmental Risk", "weight": E_weight, "indicators": E_indicators},
+        {"name": "Social Risk", "weight": S_weight, "indicators": S_indicators},
+        {"name": "Governance Risk", "weight": G_weight, "indicators": G_indicators},
+    ]
+
+    final_score_1 = (
+        sum(E_scores_1) * E_weight
+        + sum(S_scores_1) * S_weight
+        + sum(G_scores_1) * G_weight
+    ) / (E_weight + S_weight + G_weight)
+    final_score_2 = (
+        sum(E_scores_2) * E_weight
+        + sum(S_scores_2) * S_weight
+        + sum(G_scores_2) * G_weight
+    ) / (E_weight + S_weight + G_weight)
+
+    return jsonify(
+        {
+            "company_1_name": company_1_name,
+            "company_2_name": company_2_name,
+            "framework": framework,
+            "company_1_score": final_score_1,
+            "company_2_score": final_score_2,
             "Risks": Risks,
         }
     )
