@@ -603,10 +603,10 @@ def get_company_info3():
     JOIN companies ON scores.company_id = companies.id
     JOIN metrics ON scores.metric_id = metrics.id
     JOIN metric_weights on metric_weights.metric_id = metrics.id
-    LEFT JOIN indicator_metrics ON indicator_metrics.metric_id = metrics.id
-    LEFT JOIN indicators ON indicator_metrics.indicator_id = indicators.id
-    LEFT JOIN indicator_weights ON indicator_weights.indicator_id = indicators.id
-    LEFT JOIN frameworks ON indicator_weights.framework_id = frameworks.id
+    JOIN indicator_metrics ON indicator_metrics.metric_id = metrics.id
+    JOIN indicators ON indicator_metrics.indicator_id = indicators.id
+    JOIN indicator_weights ON indicator_weights.indicator_id = indicators.id
+    JOIN frameworks ON indicator_weights.framework_id = frameworks.id
     WHERE companies.name = %s AND frameworks.name = %s AND metrics.pillar = %s
     GROUP BY metrics.pillar, indicators.name, indicator_weights.indicator_weight, indicators.description, metrics.name, metric_weights.metric_weight, metrics.description;
     """
@@ -629,7 +629,7 @@ def get_company_info3():
             metric_description,
             score,
         ) = item
-        if (indicator_name, indicator_weight) not in E_output:
+        if (indicator_name, indicator_weight, indicator_description) not in E_output:
             E_output[(indicator_name, indicator_weight, indicator_description)] = [
                 (metric_name, metric_weight, metric_description, score)
             ]
@@ -648,7 +648,7 @@ def get_company_info3():
             metric_description,
             score,
         ) = item
-        if (indicator_name, indicator_weight) not in S_output:
+        if (indicator_name, indicator_weight, indicator_description) not in S_output:
             S_output[(indicator_name, indicator_weight, indicator_description)] = [
                 (metric_name, metric_weight, metric_description, score)
             ]
@@ -667,7 +667,7 @@ def get_company_info3():
             metric_description,
             score,
         ) = item
-        if (indicator_name, indicator_weight) not in G_output:
+        if (indicator_name, indicator_weight, indicator_description) not in G_output:
             G_output[(indicator_name, indicator_weight, indicator_description)] = [
                 (metric_name, metric_weight, metric_description, score)
             ]
@@ -828,7 +828,7 @@ def get_all_frameworks():
     return jsonify({"frameworks": frameworks})
 
 
-@app.route("/list/cusomized_frameworks", methods=["POST"])
+@app.route("/list/customized_frameworks", methods=["POST"])
 def get_all_customized_frameworks():
     data = request.get_json()
     token = data.get("token")
@@ -1011,6 +1011,59 @@ def create_framework():
             sql.query(query, params, True)
 
     return jsonify({"message": "Framework created!"})
+
+
+@app.route("/delete/customized_framework", methods=["POST"])
+def delete_customized_framework():
+    data = request.get_json()
+    token = data.get("token")
+    framework_name = data.get("framework_name")
+
+    # 解密token，并获得user_id
+    user_info = decode_token(SECRET_KEY, token)
+    if not user_info:
+        return jsonify({"error": "Invalid token"})
+    user_id = user_info.get("id")
+
+    # 获取framework id
+    query = """
+    SELECT
+        id
+    from frameworks
+    where frameworks.name = %s and frameworks.user_id = %s;
+    """
+    params = (framework_name, user_id)
+    framework_id = sql.query(query, params, False)
+
+    # 获取所有的indicator ids
+    query = """
+    select
+        indicators.id as indicator_id
+    from frameworks
+    join indicator_weights on indicator_weights.framework_id = frameworks.id
+    join indicators on indicator_weights.indicator_id = indicators.id
+    where frameworks.id = %s;
+    """
+    params = (framework_id,)
+    indicator_ids = sql.query(query, params, True)
+
+    # 删除metric_weights，indicator_weights，indicators里面的相关信息
+    for indicator_id in indicator_ids:
+        query1 = "delete from metric_weights where indicator_id = %s;"
+        query2 = "delete from indicator_weights where indicator_id = %s;"
+        query3 = "delete from indicators where id = %s;"
+
+        params = (indicator_id,)
+        sql.query(query1, params, True)
+        sql.query(query2, params, True)
+        sql.query(query3, params, True)
+
+    # 删除frameworks里面的相关信息
+    query = "delete from frameworks where id = %s;"
+    params = (framework_id,)
+    sql.query(query, params, True)
+
+    return jsonify({"message": "Framework deleted!"})
 
 
 @app.route("/save/analysis", methods=["POST"])
