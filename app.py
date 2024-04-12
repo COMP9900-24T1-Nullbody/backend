@@ -1,4 +1,6 @@
+import json
 import random
+import time
 from flask import Flask, jsonify, redirect, request
 from flasgger import Swagger, swag_from
 from flask_cors import CORS
@@ -1053,7 +1055,7 @@ def create_favourite_company():
     if not user_info:
         return jsonify({"error": "Invalid token"})
     user_id = user_info.get("id")
-    
+
     # 获取company_id
     query = """
     SELECT
@@ -1063,7 +1065,6 @@ def create_favourite_company():
     """
     params = (company_name,)
     company_id = sql.query(query, params, False)
-    
 
     # 创建favourites
     query = """
@@ -1159,7 +1160,82 @@ def delete_favourite_company():
 
 @app.route("/save/analysis", methods=["POST"])
 def save_analysis():
+    data = request.get_json()
+    token = data.get("token")
+    timestamp = time.strftime(
+        "%Y-%m-%d %H:%M:%S", time.localtime(data.get("timestamp") / 1000)
+    )
+    saved_data = json.dumps(data.get("data"))
+
+    # 解密token，并获得user_id
+    user_info = decode_token(SECRET_KEY, token)
+    if not user_info:
+        return jsonify({"error": "Invalid token"})
+    user_id = user_info.get("id")
+
+    # 添加到analysis_histories
+    query = """
+    INSERT INTO analysis_histories (user_id, timestamp, data) VALUES (%s, %s, %s);
+    """
+    params = (user_id, timestamp, saved_data)
+    sql.query(query, params, True)
+
     return jsonify({"message": "Analysis saved"})
+
+
+@app.route("/list/analysis", methods=["POST"])
+def list_analysis():
+    data = request.get_json()
+    token = data.get("token")
+
+    # 解密token，并获得user_id
+    user_info = decode_token(SECRET_KEY, token)
+    if not user_info:
+        return jsonify({"error": "Invalid token"})
+    user_id = user_info.get("id")
+
+    # 获取analysis_histories
+    query = """
+    SELECT
+        timestamp,
+        data
+    FROM analysis_histories
+    WHERE user_id = %s;
+    """
+    params = (user_id,)
+    analysis_histories_data = sql.query(query, params, True)
+
+    analysis_histories = [
+        {"timestamp": i[0], "data": i[1]} for i in analysis_histories_data
+    ]
+
+    return jsonify({"analysis_histories": analysis_histories})
+
+
+@app.route("/delete/analysis", methods=["POST"])
+def delete_analysis():
+    data = request.get_json()
+    token = data.get("token")
+    timestamp = data.get("timestamp")
+    deleted_data = json.dumps(data.get("data"))
+
+    # 解密token，并获得user_id
+    user_info = decode_token(SECRET_KEY, token)
+    if not user_info:
+        return jsonify({"error": "Invalid token"})
+    user_id = user_info.get("id")
+
+    # 删除analysis_histories
+    query = """
+    DELETE FROM analysis_histories
+    WHERE user_id = %s
+    AND timestamp = %s
+    AND data = %s;
+    """
+    params = (user_id, timestamp, deleted_data)
+    sql.query(query, params, True)
+
+    return jsonify({"message": "Analysis deleted"})
 
 
 @app.route("/")
