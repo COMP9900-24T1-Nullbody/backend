@@ -238,7 +238,7 @@ def reset_password():
     return jsonify({"message": "Password reset successfully"})
 
 
-@app.route("/upload_avatar", methods=["POST"])
+@app.route("/update/avatar", methods=["POST"])
 def upload_avatar():
     data = request.get_json()
     image_data = data.get("image")
@@ -532,26 +532,6 @@ def check_email_exists():
     else:
         return jsonify({"message": "Email available"})
 
-
-@app.route("/company/all", methods=["GET"])
-def get_all_companies():
-    try:
-        # 读取 CSV 文件
-        df = pd.read_csv("data/scores.csv")
-
-        # 提取所有唯一的 company_name
-        unique_companies = df["company_name"].unique()
-
-        return jsonify(
-            {
-                "message": "Unique companies extracted successfully",
-                "companies": list(unique_companies),
-            }
-        )
-    except Exception as e:
-        return jsonify({"error": str(e)})
-
-
 @app.route("/company/by_country", methods=["POST"])
 def get_companies_by_country():
     # 获取请求中的JSON数据
@@ -784,7 +764,7 @@ def get_company_info3():
     )
 
 
-@app.route("/country/all", methods=["GET"])
+@app.route("/country/all", methods=["POST"])
 def get_all_countries():
     # SQL 查询语句
     query = "SELECT name, code FROM countries"
@@ -892,7 +872,7 @@ def get_all_favourited_companies():
 
 
 @app.route("/list/metrics", methods=["POST"])
-def get_all_E_metrics():
+def get_all_metrics():
     data = request.get_json()
     pillar = data.get("pillar")
 
