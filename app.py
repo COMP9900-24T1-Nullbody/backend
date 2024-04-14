@@ -239,6 +239,7 @@ def reset_password():
 
 
 @app.route("/update/avatar", methods=["POST"])
+@swag_from("api/update_avatar.yml")
 def upload_avatar():
     data = request.get_json()
     image_data = data.get("image")
@@ -300,6 +301,7 @@ def upload_avatar():
 
 
 @app.route("/update/name", methods=["POST"])
+@swag_from("api/update_name.yml")
 def update_name():
     data = request.get_json()
     token = data.get("token")
@@ -340,6 +342,7 @@ def update_name():
 
 
 @app.route("/update/email", methods=["POST"])
+@swag_from("api/update_email.yml")
 def update_email():
     data = request.get_json()
     token = data.get("token")
@@ -382,6 +385,7 @@ def update_email():
 
 
 @app.route("/update/password", methods=["POST"])
+@swag_from("api/update_password.yml")
 def update_password():
     data = request.get_json()
     token = data.get("token")
@@ -424,6 +428,7 @@ def update_password():
 
 
 @app.route("/update/google_id", methods=["POST"])
+@swag_from("api/update_google_id.yml")
 def update_google_id():
     data = request.get_json()
     token = data.get("token")
@@ -471,6 +476,7 @@ def update_google_id():
 
 
 @app.route("/update/microsoft_id", methods=["POST"])
+@swag_from("api/update_microsoft_id.yml")
 def update_microsoft_id():
     data = request.get_json()
     token = data.get("token")
@@ -520,6 +526,7 @@ def update_microsoft_id():
 
 
 @app.route("/register_check/email", methods=["POST"])
+@swag_from("api/register_check_email.yml")
 def check_email_exists():
     data = request.get_json()
     email = data.get("email")
@@ -534,6 +541,7 @@ def check_email_exists():
 
 
 @app.route("/company/by_country", methods=["POST"])
+@swag_from("api/company_by_country.yml")
 def get_companies_by_country():
     # 获取请求中的JSON数据
     data = request.get_json()
@@ -557,6 +565,7 @@ def get_companies_by_country():
 
 
 @app.route("/company_info/v3", methods=["POST"])
+@swag_from("api/company_info_v3.yml")
 def get_company_info3():
     data = request.get_json()
     company_name = data.get("company_name")
@@ -767,6 +776,7 @@ def get_company_info3():
 
 
 @app.route("/compare_company_info/v3", methods=["POST"])
+@swag_from("api/compare_company_info_v3.yml")
 def compare_company_info_v3():
     data = request.get_json()
     company_1_name = data.get("company_1_name")
@@ -1034,6 +1044,7 @@ def compare_company_info_v3():
 
 
 @app.route("/country/all", methods=["POST"])
+@swag_from("api/country_all.yml")
 def get_all_countries():
     # SQL 查询语句
     query = "SELECT name, code FROM countries"
@@ -1048,6 +1059,7 @@ def get_all_countries():
 
 
 @app.route("/list/frameworks", methods=["POST"])
+@swag_from("api/list_frameworks.yml")
 def get_all_frameworks():
     data = request.get_json()
     token = data.get("token")
@@ -1080,6 +1092,7 @@ def get_all_frameworks():
 
 
 @app.route("/list/customized_frameworks", methods=["POST"])
+@swag_from("api/list_customized_frameworks.yml")
 def get_all_customized_frameworks():
     data = request.get_json()
     token = data.get("token")
@@ -1112,6 +1125,7 @@ def get_all_customized_frameworks():
 
 
 @app.route("/list/favourite_companies", methods=["POST"])
+@swag_from("api/list_favourite_companies.yml")
 def get_all_favourited_companies():
     data = request.get_json()
     token = data.get("token")
@@ -1141,6 +1155,7 @@ def get_all_favourited_companies():
 
 
 @app.route("/list/metrics", methods=["POST"])
+@swag_from("api/list_metrics.yml")
 def get_all_metrics():
     data = request.get_json()
     pillar = data.get("pillar")
@@ -1163,6 +1178,7 @@ def get_all_metrics():
 
 
 @app.route("/create/framework", methods=["POST"])
+@swag_from("api/create_framework.yml")
 def create_framework():
     data = request.get_json()
     token = data.get("token")
@@ -1294,6 +1310,7 @@ def create_framework():
 
 
 @app.route("/create/favourite_company", methods=["POST"])
+@swag_from("api/create_favourite_company.yml")
 def create_favourite_company():
     data = request.get_json()
     token = data.get("token")
@@ -1326,6 +1343,7 @@ def create_favourite_company():
 
 
 @app.route("/delete/customized_framework", methods=["POST"])
+@swag_from("api/delete_customized_framework.yml")
 def delete_customized_framework():
     data = request.get_json()
     token = data.get("token")
@@ -1379,6 +1397,7 @@ def delete_customized_framework():
 
 
 @app.route("/delete/favourite_company", methods=["POST"])
+@swag_from("api/delete_favourite_company.yml")
 def delete_favourite_company():
     data = request.get_json()
     token = data.get("token")
@@ -1408,6 +1427,7 @@ def delete_favourite_company():
 
 
 @app.route("/save/analysis", methods=["POST"])
+@swag_from("api/save_analysis.yml")
 def save_analysis():
     data = request.get_json()
     token = data.get("token")
@@ -1433,6 +1453,7 @@ def save_analysis():
 
 
 @app.route("/list/analysis", methods=["POST"])
+@swag_from("api/list_analysis.yml")
 def list_analysis():
     data = request.get_json()
     token = data.get("token")
@@ -1462,6 +1483,7 @@ def list_analysis():
 
 
 @app.route("/delete/analysis", methods=["POST"])
+@swag_from("api/delete_analysis.yml")
 def delete_analysis():
     data = request.get_json()
     token = data.get("token")
