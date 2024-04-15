@@ -1,6 +1,6 @@
 DROP TABLE IF EXISTS companies;
 CREATE TABLE IF NOT EXISTS companies (
-    id BIGINT PRIMARY KEY, -- 等同于perm_id
+    id BIGINT PRIMARY KEY, -- equal to perm_id
     name VARCHAR(255) NOT NULL,
     country_id INT
 );
