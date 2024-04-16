@@ -1074,7 +1074,10 @@ def get_all_frameworks():
     query = """
     SELECT
         name,
-        description
+        description,
+        E_weight,
+        S_weight,
+        G_weight
     FROM frameworks
     WHERE frameworks.user_id = 0 OR frameworks.user_id = %s;
     """
@@ -1084,7 +1087,7 @@ def get_all_frameworks():
 
     # 构建返回的 JSON 数据
     frameworks = [
-        {"name": framework[0], "description": framework[1]}
+        {"name": framework[0], "description": framework[1], "E_weight": framework[2], "S_weight": framework[3], "G_weight": framework[4]}
         for framework in frameworks_data
     ]
 
