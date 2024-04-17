@@ -21,10 +21,10 @@ class ImgurUploader:
         )
         self.client.auth.refresh()
 
-    # 上传图片, image_data需要是bytes
+    # Upload image, image_data should be bytes
     def upload(self, image_data, name, title):
 
-        # 去除前缀获取实际的 base64 编码
+        # Remove prefix to get the actual base64 encoding
         _, image_data_base64 = image_data.split(",", 1)
 
         config = {
@@ -48,8 +48,8 @@ class ImgurUploader:
 
         try:
             image = self.client.make_request("POST", "upload", data, False)
-            print("图片上传成功！地址为：", image["link"])
+            print("Image uploaded successfully! Link:", image["link"])
             return image["link"]
         except Exception as e:
-            print("图片上传失败：", e)
+            print("Image upload failed:", e)
             return None

@@ -10,6 +10,7 @@ class SQLType(enum.Enum):
     POSTGRESQL = 2
 
 
+# Define a class for handling SQL connections
 class SQL:
     def __init__(self, sql_config):
         self.host = sql_config["host"]
@@ -18,6 +19,7 @@ class SQL:
         self.database = sql_config["name"]
         self.port = sql_config["port"]
 
+        # Determine the type of SQL database based on the config
         if sql_config["type"] == "mysql":
             self.db_type = SQLType.MYSQL
         elif sql_config["type"] == "postgresql":
@@ -28,6 +30,7 @@ class SQL:
 
         self.connection = None
 
+    # Connect to the SQL database
     def connect(self):
         try:
             if self.db_type == SQLType.MYSQL:
@@ -54,11 +57,13 @@ class SQL:
         except (mysql.connector.Error, psycopg2.Error) as err:
             print(f"Error: {err}")
 
+    # Disconnect from the SQL database
     def disconnect(self):
         if self.connection:
             self.connection.close()
             print("Disconnected from database")
 
+    # Initialize the SQL database with necessary tables and data
     def initialize(self):
         if not self.connection:
             print("Error: Not connected to database")
@@ -78,6 +83,7 @@ class SQL:
         finally:
             cursor.close()
 
+    # Execute a SQL query and return the results
     def query(self, query_str, params=None, fetchall_flag=True):
         if not self.connection:
             print("Error: Not connected to database")
@@ -100,6 +106,7 @@ class SQL:
         finally:
             cursor.close()
 
+    # index the data in the database to escalate
     def data_import(self):
         files = [
             "analysis_histories",
@@ -112,7 +119,7 @@ class SQL:
             "metrics",
             "others",
             "scores",
-            "weights",
+            "weights"
         ]
 
         if not self.connection:
@@ -135,7 +142,7 @@ class SQL:
         finally:
             cursor.close()
 
-
+# Define a class for handling Redis connections
 class REDIS:
     def __init__(self, redis_config):
         self.host = redis_config["host"]
@@ -145,6 +152,7 @@ class REDIS:
 
         self.connection = None
 
+    # Connect to the Redis database
     def connect(self):
         try:
             self.connection = redis.Redis(
@@ -158,6 +166,7 @@ class REDIS:
         except redis.RedisError as err:
             print(f"Error: {err}")
 
+    # Disconnect from the Redis database
     def disconnect(self):
         if self.connection:
             self.connection.close()
