@@ -1,8 +1,4 @@
-swagger: '2.0'
-info:
-  version: 1.0.0
-  title: List Frameworks API
-  description: API for listing all frameworks
+
 paths:
   /list/frameworks:
     post:

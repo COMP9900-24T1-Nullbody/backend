@@ -1,13 +1,10 @@
-swagger: '2.0'
-info:
-  version: '1.0'
-  title: 'Create Favourite Company API'
+
 paths:
   /create/favourite_company:
     post:
       tags:
         - 'Favourite Company'
-      description: 'Add a company to the user\'s favourites'
+      description: 'Add a company to the user favourites'
       operationId: 'createFavouriteCompany'
       consumes:
         - 'application/json'
@@ -16,7 +13,7 @@ paths:
       parameters:
         - in: 'body'
           name: 'body'
-          description: 'Information needed to add a company to the user\'s favourites'
+          description: 'Information needed to add a company to the user favourites'
           required: true
           schema:
             type: 'object'

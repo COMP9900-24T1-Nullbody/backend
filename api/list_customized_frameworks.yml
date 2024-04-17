@@ -1,8 +1,4 @@
-swagger: '2.0'
-info:
-  version: 1.0.0上
-  title: List Customized Frameworks API
-  description: API for listing all customized frameworks
+
 paths:
   /list/customized_frameworks:
     post:

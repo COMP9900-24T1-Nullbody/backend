@@ -1,13 +1,10 @@
-swagger: '2.0'
-info:
-  version: '1.0'
-  title: 'Delete Favourite Company API'
+
 paths:
   /delete/favourite_company:
     post:
       tags:
         - 'Favourite Company'
-      description: 'Delete a company from the user\'s favourites'
+      description: 'Delete a company from the user favourites'
       operationId: 'deleteFavouriteCompany'
       consumes:
         - 'application/json'
@@ -16,7 +13,7 @@ paths:
       parameters:
         - in: 'body'
           name: 'body'
-          description: 'Information needed to delete a company from the user\'s favourites'
+          description: 'Information needed to delete a company from the user favourites'
           required: true
           schema:
             type: 'object'

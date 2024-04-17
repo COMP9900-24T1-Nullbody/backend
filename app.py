@@ -51,10 +51,10 @@ def login():
     token = data.get("token")
 
     if token:
-        # 解码 token 获取用户信息
+        # Decode token to get user information
         user_info = decode_token(SECRET_KEY, token)
         if user_info:
-            # 获取用户信息中的各个字段
+            # Get user information fields
             id = user_info.get("id")
             name = user_info.get("name")
             email = user_info.get("email")
@@ -62,12 +62,12 @@ def login():
             google_id = user_info.get("google_id")
             microsoft_id = user_info.get("microsoft_id")
 
-            # 使用解码后的信息构建 SQL 查询语句
+            # Build SQL query using decoded information
             query = "SELECT * FROM users WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
             params = (id, name, email, password, google_id, microsoft_id)
             user_info = sql.query(query, params, False)
             if user_info:
-                # 如果查询到匹配的用户信息，生成新的 token 返回给客户端
+                # If matching user information is found, generate a new token and return it to the client
                 token = generate_token(SECRET_KEY, user_info)
                 return jsonify(
                     {
@@ -80,7 +80,7 @@ def login():
         else:
             return jsonify({"error": "Invalid token"})
     elif google_id:
-        # 使用 Google ID 登录
+        # Login using Google ID
         query = "SELECT * FROM users WHERE google_id = %s"
         params = (google_id,)
         user_info = sql.query(query, params, False)
@@ -90,7 +90,7 @@ def login():
         else:
             return jsonify({"error": "Invalid Google ID or You haven't registered!"})
     elif microsoft_id:
-        # 使用 Microsoft ID 登录
+        # Login using Microsoft ID
         query = "SELECT * FROM users WHERE microsoft_id = %s"
         params = (microsoft_id,)
         user_info = sql.query(query, params, False)
@@ -100,7 +100,7 @@ def login():
         else:
             return jsonify({"error": "Invalid Microsoft ID or You haven't registered!"})
     elif email and password:
-        # 使用邮箱和密码登录
+        # Login using email and password
         query = "SELECT * FROM users WHERE email = %s AND password = %s"
         params = (email, password)
         user_info = sql.query(query, params, False)
@@ -118,6 +118,7 @@ def login():
 @app.route("/register", methods=["POST"])
 @swag_from("api/register.yml")
 def register():
+    # Get user data from request
     data = request.get_json()
     name = data.get("name")
     email = data.get("email")
@@ -126,12 +127,12 @@ def register():
     microsoft_id = data.get("microsoft_id")
     token = data.get("token")
 
-    # 检查 email 是否已被使用
+    # Check if email is already used
     user = sql.query("SELECT * FROM users WHERE email = %s", (email,), False)
     if user:
         return jsonify({"error": "Email already exists"})
 
-    # 插入用户信息
+    # Insert user information into database
     insert_query = "INSERT INTO users (name, email, password, google_id, microsoft_id, avatar_url) VALUES (%s, %s, %s, %s, %s, %s)"
     params = (
         name,
@@ -140,10 +141,10 @@ def register():
         google_id,
         microsoft_id,
         "https://i.imgur.com/pbMbyHp.jpg",
-    )  # 默认头像
+    )  # Default avatar
     sql.query(insert_query, params, False)
 
-    # 查询刚插入的用户信息
+    # Retrieve the inserted user information
     if email and password:
         select_query = "SELECT * FROM users WHERE email = %s AND password = %s"
         user_info = sql.query(select_query, (email, password), False)
@@ -156,10 +157,10 @@ def register():
     else:
         return jsonify({"error": "Email and password or Google ID are required"})
 
-    # 生成 token
+    # Generate token
     token = generate_token(SECRET_KEY, user_info)
 
-    # 返回完整的用户信息和 token
+    # Return the complete user information and token
     return jsonify(
         {
             "message": "Registered successfully, Welcome!",
@@ -172,30 +173,31 @@ def register():
 @app.route("/request_reset_password", methods=["POST"])
 @swag_from("api/request_reset_password.yml")
 def request_reset_password():
+    # Get user data from request
     data = request.get_json()
     email = data.get("email")
 
-    # 邮箱是否存在
+    # Check if email is provided
     if not email:
         return jsonify({"error": "Email is required"})
 
-    # 邮箱格式是否正确
+    # Check if email format is valid
     if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
         return jsonify({"error": "Invalid email format"})
 
-    # 查询用户是否存在
+    # Check if user exists
     user = sql.query("SELECT * FROM users WHERE email = %s", (email,), False)
 
     if not user:
         return jsonify({"error": "User not found"})
 
-    # 生成随机验证码和过期时间
+    # Generate random verification code and expiration time
     code = random.randint(100000, 999999)
 
     redis.connection.set(email, code)
-    redis.connection.expire(email, 600)  # 10分钟后过期
+    redis.connection.expire(email, 600)  # Expire after 10 minutes
 
-    # 发送验证码到用户邮箱
+    # Send verification code to user's email
     smtp.send_email(
         email,
         "Password Reset Verification Code",
@@ -208,6 +210,7 @@ def request_reset_password():
 @app.route("/reset_password", methods=["POST"])
 @swag_from("api/reset_password.yml")
 def reset_password():
+    # Get user data from request
     data = request.get_json()
     email = data.get("email")
     code = data.get("code")
@@ -216,21 +219,21 @@ def reset_password():
     if not email or not code or not new_password:
         return jsonify({"error": "Email, code, and new password are required"})
 
-    # 从 Redis 中获取存储的验证码和过期时间
+    # Retrieve stored verification code and expiration time from Redis
     stored_code = int(redis.connection.get(email).decode())
 
-    # 检查验证码是否存在
+    # Check if verification code exists
     if not stored_code:
         return jsonify({"error": "Verification code not found or expired"})
 
-    # 检查验证码是否匹配
+    # Check if verification code matches
     if code != stored_code:
         return jsonify({"error": "Invalid verification code"})
 
-    # 删除 Redis 中的验证码
+    # Delete verification code from Redis
     redis.connection.delete(email)
 
-    # 更新用户密码
+    # Update user password
     sql.query(
         "UPDATE users SET password = %s WHERE email = %s", (new_password, email), True
     )
@@ -241,6 +244,7 @@ def reset_password():
 @app.route("/update/avatar", methods=["POST"])
 @swag_from("api/update_avatar.yml")
 def upload_avatar():
+    # Get user data from request
     data = request.get_json()
     image_data = data.get("image")
     token = data.get("token")
@@ -252,7 +256,7 @@ def upload_avatar():
     user_info = decode_token(SECRET_KEY, token)
 
     if user_info:
-        # 获取用户信息中的各个字段
+        # Get individual fields from user information
         id = user_info.get("id")
         name = user_info.get("name")
         email = user_info.get("email")
@@ -260,12 +264,12 @@ def upload_avatar():
         google_id = user_info.get("google_id")
         microsoft_id = user_info.get("microsoft_id")
 
-        # 使用解码后的信息构建 SQL 查询语句
+        # Build SQL query using decoded information
         query = "SELECT * FROM users WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
         params = (id, name, email, password, google_id, microsoft_id)
         user_info = sql.query(query, params, False)
         if user_info:
-            # 如果查询到匹配的用户信息，更新对应的头像URL，并生成新的 token 返回给客户端
+            # If matching user information is found, update the corresponding avatar URL and generate a new token to return to the client
             update_query = "UPDATE users SET avatar_url = %s WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s;"
             params = (
                 new_avatar_url,
@@ -299,10 +303,12 @@ def upload_avatar():
 
     return jsonify({"error": "Can't get user_info from token!"})
 
-
 @app.route("/update/name", methods=["POST"])
 @swag_from("api/update_name.yml")
 def update_name():
+    """
+    Update user's name in the database.
+    """
     data = request.get_json()
     token = data.get("token")
     name = data.get("name")
@@ -321,7 +327,7 @@ def update_name():
     google_id = user_info.get("google_id")
     microsoft_id = user_info.get("microsoft_id")
 
-    # 更新数据库中的用户名信息
+    # Update the username information in the database
     update_query = "UPDATE users SET name = %s WHERE id = %s AND email = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
     params = (name, id, email, password, google_id, microsoft_id)
     sql.query(update_query, params, True)
@@ -344,6 +350,9 @@ def update_name():
 @app.route("/update/email", methods=["POST"])
 @swag_from("api/update_email.yml")
 def update_email():
+    """
+    Update user's email in the database.
+    """
     data = request.get_json()
     token = data.get("token")
     email = data.get("email")
@@ -364,7 +373,7 @@ def update_email():
     google_id = user_info.get("google_id")
     microsoft_id = user_info.get("microsoft_id")
 
-    # 更新数据库中的邮箱信息
+    # Update the email information in the database
     update_query = "UPDATE users SET email = %s WHERE id = %s AND name = %s AND password = %s AND google_id = %s AND microsoft_id = %s"
     params = (email, id, name, password, google_id, microsoft_id)
     sql.query(update_query, params, True)
@@ -387,6 +396,9 @@ def update_email():
 @app.route("/update/password", methods=["POST"])
 @swag_from("api/update_password.yml")
 def update_password():
+    """
+    Update user's password in the database.
+    """
     data = request.get_json()
     token = data.get("token")
     password = data.get("password")
@@ -407,7 +419,7 @@ def update_password():
     google_id = user_info.get("google_id")
     microsoft_id = user_info.get("microsoft_id")
 
-    # 更新数据库中的密码信息
+    # Update the password information in the database
     update_query = "UPDATE users SET password = %s WHERE id = %s AND name = %s AND email = %s AND google_id = %s AND microsoft_id = %s"
     params = (password, id, name, email, google_id, microsoft_id)
     sql.query(update_query, params, True)
@@ -430,6 +442,9 @@ def update_password():
 @app.route("/update/google_id", methods=["POST"])
 @swag_from("api/update_google_id.yml")
 def update_google_id():
+    """
+    Update user's Google ID in the database.
+    """
     data = request.get_json()
     token = data.get("token")
     google_id = data.get("google_id")
@@ -444,7 +459,7 @@ def update_google_id():
             {"error": "Invalid token or token is expired, Try to login again."}
         )
 
-    # 查询google_id是否已被绑定
+    # Check if the google_id is already bound
     user = sql.query("SELECT * FROM users WHERE google_id = %s", (google_id,), False)
     if user:
         return jsonify({"error": "Google ID already bound."})
@@ -455,7 +470,7 @@ def update_google_id():
     password = user_info.get("password")
     microsoft_id = user_info.get("microsoft_id")
 
-    # 更新数据库中的Google ID信息
+    # Update the Google ID information in the database
     update_query = "UPDATE users SET google_id = %s WHERE id = %s AND name = %s AND email = %s AND password = %s AND microsoft_id = %s"
     params = (google_id, id, name, email, password, microsoft_id)
     sql.query(update_query, params, True)
@@ -478,6 +493,9 @@ def update_google_id():
 @app.route("/update/microsoft_id", methods=["POST"])
 @swag_from("api/update_microsoft_id.yml")
 def update_microsoft_id():
+    """
+    Update user's Microsoft ID in the database.
+    """
     data = request.get_json()
     token = data.get("token")
     microsoft_id = data.get("microsoft_id")
@@ -492,7 +510,7 @@ def update_microsoft_id():
             {"error": "Invalid token or token is expired, Try to login again."}
         )
 
-    # 查询microsoft_id是否已被绑定
+    # Check if the microsoft_id is already bound
     user = sql.query(
         "SELECT * FROM users WHERE microsoft_id = %s", (microsoft_id,), False
     )
@@ -505,7 +523,7 @@ def update_microsoft_id():
     password = user_info.get("password")
     google_id = user_info.get("google_id")
 
-    # 更新数据库中的Microsoft ID信息
+    # Update the Microsoft ID information in the database
     update_query = "UPDATE users SET microsoft_id = %s WHERE id = %s AND name = %s AND email = %s AND password = %s AND google_id = %s"
     params = (microsoft_id, id, name, email, password, google_id)
     sql.query(update_query, params, True)
@@ -524,14 +542,14 @@ def update_microsoft_id():
 
     return jsonify({"message": "Microsoft ID updated successfully", "token": new_token})
 
-
 @app.route("/register_check/email", methods=["POST"])
 @swag_from("api/register_check_email.yml")
 def check_email_exists():
+    # Get the JSON data from the request
     data = request.get_json()
     email = data.get("email")
 
-    # 查询数据库检查邮箱是否已存在
+    # Query the database to check if the email already exists
     user = sql.query("SELECT * FROM users WHERE email = %s", (email,), False)
 
     if user:
@@ -543,22 +561,22 @@ def check_email_exists():
 @app.route("/company/by_country", methods=["POST"])
 @swag_from("api/company_by_country.yml")
 def get_companies_by_country():
-    # 获取请求中的JSON数据
+    # Get the JSON data from the request
     data = request.get_json()
     country_code = data.get("country_code")
 
-    # 检查country_code是否存在
+    # Check if country_code exists
     if not country_code:
         return jsonify({"error": "Country code is required"})
 
-    # 构建 SQL 查询语句
+    # Build the SQL query
     query = "SELECT companies.name FROM companies JOIN countries ON companies.country_id = countries.id WHERE countries.code = %s"
     params = (country_code,)
 
-    # 执行查询并获取结果
+    # Execute the query and get the results
     companies_data = sql.query(query, params, fetchall_flag=True)
 
-    # 提取查询结果中的公司名称
+    # Extract the company names from the query results
     companies = [company[0] for company in companies_data]
 
     return jsonify({"companies": companies})
@@ -567,10 +585,12 @@ def get_companies_by_country():
 @app.route("/company_info/v3", methods=["POST"])
 @swag_from("api/company_info_v3.yml")
 def get_company_info3():
+    # Get the JSON data from the request
     data = request.get_json()
     company_name = data.get("company_name")
     framework = data.get("framework")
 
+    # Query to get the ESG weights for the given framework
     esg_weight_query = """
     SELECT
         frameworks.E_weight,
@@ -582,6 +602,7 @@ def get_company_info3():
     esg_weight = sql.query(esg_weight_query, (framework,), fetchall_flag=True)
     E_weight, S_weight, G_weight = esg_weight[0]
 
+    # Query to get the company information for each pillar (E, S, G)
     info_query = """
     SELECT
         indicators.name as indicator_name,
@@ -604,14 +625,18 @@ def get_company_info3():
     HAVING indicators.id = metric_weights.indicator_id AND frameworks.id = indicator_weights.framework_id;
     """
 
+    # Get the company information for pillar E
     E_info = sql.query(info_query, (company_name, framework, "E"), fetchall_flag=True)
+
+    # Get the company information for pillar S
     S_info = sql.query(info_query, (company_name, framework, "S"), fetchall_flag=True)
+
+    # Get the company information for pillar G
     G_info = sql.query(info_query, (company_name, framework, "G"), fetchall_flag=True)
 
+    # Process the company information for pillar E
     E_output = {}
-    S_output = {}
-    G_output = {}
-
+    
     for item in E_info:
         (
             indicator_name,
@@ -631,6 +656,8 @@ def get_company_info3():
                 (metric_name, metric_weight, metric_description, score)
             )
 
+    # Process the company information for pillar S
+    S_output = {}
     for item in S_info:
         (
             indicator_name,
@@ -650,6 +677,8 @@ def get_company_info3():
                 (metric_name, metric_weight, metric_description, score)
             )
 
+    # Process the company information for pillar G
+    G_output = {}
     for item in G_info:
         (
             indicator_name,
@@ -669,14 +698,9 @@ def get_company_info3():
                 (metric_name, metric_weight, metric_description, score)
             )
 
+    # Process the company information for pillar E
     E_indicators = []
-    S_indicators = []
-    G_indicators = []
-
     E_scores = []
-    S_scores = []
-    G_scores = []
-
     for k, v in E_output.items():
         name, weight, description = k
         metrics = [
@@ -703,6 +727,9 @@ def get_company_info3():
             }
         )
 
+    # Process the company information for pillar S
+    S_indicators = []
+    S_scores = []
     for k, v in S_output.items():
         name, weight, description = k
         metrics = [
@@ -729,6 +756,9 @@ def get_company_info3():
             }
         )
 
+    # Process the company information for pillar G
+    G_indicators = []
+    G_scores = []
     for k, v in G_output.items():
         name, weight, description = k
         metrics = [
@@ -755,34 +785,34 @@ def get_company_info3():
             }
         )
 
-    Risks = [
-        {"name": "Environmental Risk", "weight": E_weight, "indicators": E_indicators},
-        {"name": "Social Risk", "weight": S_weight, "indicators": S_indicators},
-        {"name": "Governance Risk", "weight": G_weight, "indicators": G_indicators},
-    ]
-
+    # Calculate the final score
     final_score = (
         sum(E_scores) * E_weight + sum(S_scores) * S_weight + sum(G_scores) * G_weight
     ) / (E_weight + S_weight + G_weight)
 
+    # Return the company information
     return jsonify(
         {
             "company_name": company_name,
             "framework": framework,
             "score": final_score,
-            "Risks": Risks,
+            "Risks": [
+                {"name": "Environmental Risk", "weight": E_weight, "indicators": E_indicators},
+                {"name": "Social Risk", "weight": S_weight, "indicators": S_indicators},
+                {"name": "Governance Risk", "weight": G_weight, "indicators": G_indicators},
+            ],
         }
     )
-
-
 @app.route("/compare_company_info/v3", methods=["POST"])
 @swag_from("api/compare_company_info_v3.yml")
 def compare_company_info_v3():
+    # Get JSON data from request
     data = request.get_json()
     company_1_name = data.get("company_1_name")
     company_2_name = data.get("company_2_name")
     framework = data.get("framework")
 
+    # Query to get ESG weights for the specified framework
     esg_weight_query = """
     SELECT
         frameworks.E_weight,
@@ -794,6 +824,7 @@ def compare_company_info_v3():
     esg_weight = sql.query(esg_weight_query, (framework,), fetchall_flag=True)
     E_weight, S_weight, G_weight = esg_weight[0]
 
+    # Query to get company information for each pillar (E, S, G)
     info_query = """
     SELECT *
     FROM (
@@ -821,6 +852,7 @@ def compare_company_info_v3():
     WHERE company_1_score != 0 AND company_2_score != 0;
     """
 
+    # Execute queries to get information for each pillar
     E_info = sql.query(
         info_query,
         (
@@ -858,10 +890,8 @@ def compare_company_info_v3():
         fetchall_flag=True,
     )
 
+    # Process E pillar information
     E_output = {}
-    S_output = {}
-    G_output = {}
-
     for item in E_info:
         (
             indicator_name,
@@ -882,6 +912,8 @@ def compare_company_info_v3():
                 (metric_name, metric_weight, metric_description, score_1, score_2)
             )
 
+    # Process S pillar information
+    S_output = {}
     for item in S_info:
         (
             indicator_name,
@@ -902,6 +934,8 @@ def compare_company_info_v3():
                 (metric_name, metric_weight, metric_description, score_1, score_2)
             )
 
+    # Process G pillar information
+    G_output = {}
     for item in G_info:
         (
             indicator_name,
@@ -922,11 +956,8 @@ def compare_company_info_v3():
                 (metric_name, metric_weight, metric_description, score_1, score_2)
             )
 
-    E_indicators, S_indicators, G_indicators = [], [], []
-
-    E_scores_1, S_scores_1, G_scores_1 = [], [], []
-    E_scores_2, S_scores_2, G_scores_2 = [], [], []
-
+    # Prepare output for E pillar
+    E_indicators, E_scores_1, E_scores_2 = [], [], []
     for k, v in E_output.items():
         name, weight, description = k
         metrics = [
@@ -956,6 +987,8 @@ def compare_company_info_v3():
             }
         )
 
+    # Prepare output for S pillar
+    S_indicators, S_scores_1, S_scores_2 = [], [], []
     for k, v in S_output.items():
         name, weight, description = k
         metrics = [
@@ -985,6 +1018,8 @@ def compare_company_info_v3():
             }
         )
 
+    # Prepare output for G pillar
+    G_indicators, G_scores_1, G_scores_2 = [], [], []
     for k, v in G_output.items():
         name, weight, description = k
         metrics = [
@@ -1014,12 +1049,14 @@ def compare_company_info_v3():
             }
         )
 
+    # Prepare risk information
     Risks = [
         {"name": "Environmental Risk", "weight": E_weight, "indicators": E_indicators},
         {"name": "Social Risk", "weight": S_weight, "indicators": S_indicators},
         {"name": "Governance Risk", "weight": G_weight, "indicators": G_indicators},
     ]
 
+    # Calculate final scores
     final_score_1 = (
         sum(E_scores_1) * E_weight
         + sum(S_scores_1) * S_weight
@@ -1031,6 +1068,7 @@ def compare_company_info_v3():
         + sum(G_scores_2) * G_weight
     ) / (E_weight + S_weight + G_weight)
 
+    # Return JSON response
     return jsonify(
         {
             "company_1_name": company_1_name,
@@ -1046,13 +1084,13 @@ def compare_company_info_v3():
 @app.route("/country/all", methods=["POST"])
 @swag_from("api/country_all.yml")
 def get_all_countries():
-    # SQL 查询语句
+    # SQL query to get all countries
     query = "SELECT name, code FROM countries"
 
-    # 执行查询并获取结果
+    # Execute query and get results
     countries_data = sql.query(query, fetchall_flag=True)
 
-    # 构建返回的 JSON 数据
+    # Build JSON response
     countries = [{"name": country[0], "code": country[1]} for country in countries_data]
 
     return jsonify({"countries": countries})
@@ -1064,13 +1102,13 @@ def get_all_frameworks():
     data = request.get_json()
     token = data.get("token")
 
-    # 解密token，并获得user_id
+    # Decrypt token and get user_id
     user_info = decode_token(SECRET_KEY, token)
     if not user_info:
         return jsonify({"error": "Invalid token"})
     user_id = user_info.get("id")
 
-    # SQL 查询语句
+    # SQL query to get all frameworks
     query = """
     SELECT
         name,
@@ -1082,10 +1120,10 @@ def get_all_frameworks():
     WHERE frameworks.user_id = 0 OR frameworks.user_id = %s;
     """
 
-    # 执行查询并获取结果
+    # Execute query and get results
     frameworks_data = sql.query(query, (user_id,), fetchall_flag=True)
 
-    # 构建返回的 JSON 数据
+    # Build JSON response
     frameworks = [
         {"name": framework[0], "description": framework[1], "E_weight": framework[2], "S_weight": framework[3], "G_weight": framework[4]}
         for framework in frameworks_data
@@ -1100,13 +1138,13 @@ def get_all_customized_frameworks():
     data = request.get_json()
     token = data.get("token")
 
-    # 解密token，并获得user_id
+    # Decrypt token and get user_id
     user_info = decode_token(SECRET_KEY, token)
     if not user_info:
         return jsonify({"error": "Invalid token"})
     user_id = user_info.get("id")
 
-    # SQL 查询语句
+    # SQL query to get customized frameworks
     query = """
     SELECT
         name,
@@ -1115,10 +1153,10 @@ def get_all_customized_frameworks():
     WHERE frameworks.user_id = %s;
     """
 
-    # 执行查询并获取结果
+    # Execute query and get results
     frameworks_data = sql.query(query, (user_id,), fetchall_flag=True)
 
-    # 构建返回的 JSON 数据
+    # Build JSON response
     frameworks = [
         {"name": framework[0], "description": framework[1]}
         for framework in frameworks_data
@@ -1133,13 +1171,13 @@ def get_all_favourited_companies():
     data = request.get_json()
     token = data.get("token")
 
-    # 解密token，并获得user_id
+    # Decrypt token and get user_id
     user_info = decode_token(SECRET_KEY, token)
     if not user_info:
         return jsonify({"error": "Invalid token"})
     user_id = user_info.get("id")
 
-    # SQL 查询语句
+    # SQL query to get favourited companies
     query = """
     SELECT
         companies.name as company_name
@@ -1148,10 +1186,10 @@ def get_all_favourited_companies():
     WHERE favourites.user_id = %s;
     """
 
-    # 执行查询并获取结果
+    # Execute query and get results
     favourites_data = sql.query(query, (user_id,), fetchall_flag=True)
 
-    # 构建返回的 JSON 数据
+    # Build JSON response
     favourites = [{"name": favourite[0]} for favourite in favourites_data]
 
     return jsonify({"favourites": favourites})
@@ -1163,7 +1201,7 @@ def get_all_metrics():
     data = request.get_json()
     pillar = data.get("pillar")
 
-    # SQL 查询语句
+    # SQL query to get metrics for a specific pillar
     query = """
     SELECT 
         name
@@ -1171,11 +1209,11 @@ def get_all_metrics():
     WHERE metrics.pillar = %s;
     """
 
-    # 执行查询并获取结果
+    # Execute query and get results
     metrics_data = sql.query(query, (pillar,), fetchall_flag=True)
     metrics_list = [
         metric[0] for metric in metrics_data
-    ]  # 使用列表推导式提取内部字符串元素
+    ]  # Extract string elements using list comprehension
 
     return jsonify({"metrics": metrics_list})
 
@@ -1187,7 +1225,7 @@ def create_framework():
     token = data.get("token")
     framework_info = data.get("framework_info")
 
-    # 解密token，并获得user_id
+    # Decrypt the token and get the user_id
     user_info = decode_token(SECRET_KEY, token)
     if not user_info:
         return jsonify({"error": "Invalid token"})
@@ -1206,7 +1244,7 @@ def create_framework():
         framework_info.get("G_indicators"),
     )
 
-    # 创建framework
+    # Create framework
     query = "INSERT INTO frameworks (user_id, name, description, E_weight, S_weight, G_weight) VALUES (%s, %s, %s, %s, %s, %s)"
     params = (
         user_id,
@@ -1218,114 +1256,114 @@ def create_framework():
     )
     sql.query(query, params, True)
 
-    # 获取创建的framework id
+    # Get the created framework id
     query = "SELECT id FROM frameworks WHERE user_id = %s AND name = %s"
     params = (user_id, framework_name)
     framework_id = sql.query(query, params, False)
 
-    # 创建indicators
+    # Create indicators
     for indicator in E_indicators:
-        # 创建indicator
+        # Create indicator
         query = (
             "INSERT INTO indicators (user_id, name, description) VALUES (%s, %s, %s)"
         )
         params = (user_id, indicator["name"], indicator["description"])
         sql.query(query, params, True)
-        # 获取indicator id
+        # Get indicator id
         query = "SELECT id FROM indicators WHERE user_id = %s AND name = %s"
         params = (user_id, indicator["name"])
         indicator_id = sql.query(query, params, False)
-        # 插入到indicator_weights
+        # Insert into indicator_weights
         query = "INSERT INTO indicator_weights (framework_id, indicator_id, indicator_weight) VALUES (%s, %s, %s)"
         params = (framework_id, indicator_id, indicator["weight"])
         sql.query(query, params, True)
         for metric in indicator["metrics"]:
-            # 获取metric id
+            # Get metric id
             query = "SELECT id FROM metrics WHERE name = %s"
             params = (metric["name"],)
             metric_id = sql.query(query, params, False)
-            # 插入到metric_weights
+            # Insert into metric_weights
             query = "INSERT INTO metric_weights (indicator_id, metric_id, metric_weight) VALUES (%s, %s, %s)"
             params = (indicator_id, metric_id, metric["weight"])
             sql.query(query, params, True)
-            # 插入到indicator_metrics
+            # Insert into indicator_metrics
             query = "INSERT INTO indicator_metrics (indicator_id, metric_id) VALUES (%s, %s)"
             params = (indicator_id, metric_id)
             sql.query(query, params, True)
     for indicator in S_indicators:
-        # 创建indicator
+        # Create indicator
         query = (
             "INSERT INTO indicators (user_id, name, description) VALUES (%s, %s, %s)"
         )
         params = (user_id, indicator["name"], indicator["description"])
         sql.query(query, params, True)
-        # 获取indicator id
+        # Get indicator id
         query = "SELECT id FROM indicators WHERE user_id = %s AND name = %s"
         params = (user_id, indicator["name"])
         indicator_id = sql.query(query, params, False)
-        # 插入到indicator_weights
+        # Insert into indicator_weights
         query = "INSERT INTO indicator_weights (framework_id, indicator_id, indicator_weight) VALUES (%s, %s, %s)"
         params = (framework_id, indicator_id, indicator["weight"])
         sql.query(query, params, True)
         for metric in indicator["metrics"]:
-            # 获取metric id
+            # Get metric id
             query = "SELECT id FROM metrics WHERE name = %s"
             params = (metric["name"],)
             metric_id = sql.query(query, params, False)
-            # 插入到metric_weights
+            # Insert into metric_weights
             query = "INSERT INTO metric_weights (indicator_id, metric_id, metric_weight) VALUES (%s, %s, %s)"
             params = (indicator_id, metric_id, metric["weight"])
             sql.query(query, params, True)
-            # 插入到indicator_metrics
+            # Insert into indicator_metrics
             query = "INSERT INTO indicator_metrics (indicator_id, metric_id) VALUES (%s, %s)"
             params = (indicator_id, metric_id)
             sql.query(query, params, True)
     for indicator in G_indicators:
-        # 创建indicator
+        # Create indicator
         query = (
             "INSERT INTO indicators (user_id, name, description) VALUES (%s, %s, %s)"
         )
         params = (user_id, indicator["name"], indicator["description"])
         sql.query(query, params, True)
-        # 获取indicator id
+        # Get indicator id
         query = "SELECT id FROM indicators WHERE user_id = %s AND name = %s"
         params = (user_id, indicator["name"])
         indicator_id = sql.query(query, params, False)
-        # 插入到indicator_weights
+        # Insert into indicator_weights
         query = "INSERT INTO indicator_weights (framework_id, indicator_id, indicator_weight) VALUES (%s, %s, %s)"
         params = (framework_id, indicator_id, indicator["weight"])
         sql.query(query, params, True)
         for metric in indicator["metrics"]:
-            # 获取metric id
+            # Get metric id
             query = "SELECT id FROM metrics WHERE name = %s"
             params = (metric["name"],)
             metric_id = sql.query(query, params, False)
-            # 插入到metric_weights
+            # Insert into metric_weights
             query = "INSERT INTO metric_weights (indicator_id, metric_id, metric_weight) VALUES (%s, %s, %s)"
             params = (indicator_id, metric_id, metric["weight"])
             sql.query(query, params, True)
-            # 插入到indicator_metrics
+            # Insert into indicator_metrics
             query = "INSERT INTO indicator_metrics (indicator_id, metric_id) VALUES (%s, %s)"
             params = (indicator_id, metric_id)
             sql.query(query, params, True)
 
     return jsonify({"message": "Framework created!"})
 
-
 @app.route("/create/favourite_company", methods=["POST"])
 @swag_from("api/create_favourite_company.yml")
 def create_favourite_company():
+    # Get request data
     data = request.get_json()
     token = data.get("token")
     company_name = data.get("company_name")
 
-    # 解密token，并获得user_id
+    # Decrypt token and get user_id
     user_info = decode_token(SECRET_KEY, token)
     if not user_info:
         return jsonify({"error": "Invalid token"})
     user_id = user_info.get("id")
 
-    # 获取company_id
+    # Get company_id
     query = """
     SELECT
         id
@@ -1335,7 +1373,7 @@ def create_favourite_company():
     params = (company_name,)
     company_id = sql.query(query, params, False)
 
-    # 创建favourites
+    # Create favourites
     query = """
     INSERT INTO favourites (user_id, company_id) VALUES (%s, %s);
     """
@@ -1348,17 +1386,18 @@ def create_favourite_company():
 @app.route("/delete/customized_framework", methods=["POST"])
 @swag_from("api/delete_customized_framework.yml")
 def delete_customized_framework():
+    # Get request data
     data = request.get_json()
     token = data.get("token")
     framework_name = data.get("framework_name")
 
-    # 解密token，并获得user_id
+    # Decrypt token and get user_id
     user_info = decode_token(SECRET_KEY, token)
     if not user_info:
         return jsonify({"error": "Invalid token"})
     user_id = user_info.get("id")
 
-    # 获取framework id
+    # Get framework id
     query = """
     SELECT
         id
@@ -1368,7 +1407,7 @@ def delete_customized_framework():
     params = (framework_name, user_id)
     framework_id = sql.query(query, params, False)
 
-    # 获取所有的indicator ids
+    # Get all indicator ids
     query = """
     select
         indicators.id as indicator_id
@@ -1380,7 +1419,7 @@ def delete_customized_framework():
     params = (framework_id,)
     indicator_ids = sql.query(query, params, True)
 
-    # 删除metric_weights，indicator_weights，indicators里面的相关信息
+    # Delete metric_weights, indicator_weights, and indicators related to the framework
     for indicator_id in indicator_ids:
         query1 = "delete from metric_weights where indicator_id = %s;"
         query2 = "delete from indicator_weights where indicator_id = %s;"
@@ -1391,7 +1430,7 @@ def delete_customized_framework():
         sql.query(query2, params, True)
         sql.query(query3, params, True)
 
-    # 删除frameworks里面的相关信息
+    # Delete the framework
     query = "delete from frameworks where id = %s;"
     params = (framework_id,)
     sql.query(query, params, True)
@@ -1406,13 +1445,13 @@ def delete_favourite_company():
     token = data.get("token")
     company_name = data.get("company_name")
 
-    # 解密token，并获得user_id
+    # Decrypt token and get user_id
     user_info = decode_token(SECRET_KEY, token)
     if not user_info:
         return jsonify({"error": "Invalid token"})
     user_id = user_info.get("id")
 
-    # 删除favourites里面的相关信息
+    # Delete related information from favourites
     query = """
     DELETE FROM favourites
     USING companies
@@ -1439,13 +1478,13 @@ def save_analysis():
     )
     saved_data = json.dumps(data.get("data"))
 
-    # 解密token，并获得user_id
+    # Decrypt token and get user_id
     user_info = decode_token(SECRET_KEY, token)
     if not user_info:
         return jsonify({"error": "Invalid token"})
     user_id = user_info.get("id")
 
-    # 添加到analysis_histories
+    # Add to analysis_histories
     query = """
     INSERT INTO analysis_histories (user_id, timestamp, data) VALUES (%s, %s, %s);
     """
@@ -1458,16 +1497,19 @@ def save_analysis():
 @app.route("/list/analysis", methods=["POST"])
 @swag_from("api/list_analysis.yml")
 def list_analysis():
+    """
+    List analysis histories for a user.
+    """
     data = request.get_json()
     token = data.get("token")
 
-    # 解密token，并获得user_id
+    # Decrypt token and get user_id
     user_info = decode_token(SECRET_KEY, token)
     if not user_info:
         return jsonify({"error": "Invalid token"})
     user_id = user_info.get("id")
 
-    # 获取analysis_histories
+    # Get analysis_histories
     query = """
     SELECT
         timestamp,
@@ -1488,18 +1530,21 @@ def list_analysis():
 @app.route("/delete/analysis", methods=["POST"])
 @swag_from("api/delete_analysis.yml")
 def delete_analysis():
+    """
+    Delete an analysis history for a user.
+    """
     data = request.get_json()
     token = data.get("token")
     timestamp = data.get("timestamp")
     deleted_data = json.dumps(data.get("data"))
 
-    # 解密token，并获得user_id
+    # Decrypt token and get user_id
     user_info = decode_token(SECRET_KEY, token)
     if not user_info:
         return jsonify({"error": "Invalid token"})
     user_id = user_info.get("id")
 
-    # 删除analysis_histories
+    # Delete analysis_histories
     query = """
     DELETE FROM analysis_histories
     WHERE user_id = %s
@@ -1514,6 +1559,9 @@ def delete_analysis():
 
 @app.route("/")
 def index():
+    """
+    Redirect to Swagger UI.
+    """
     return redirect(swagger_config["specs_route"])
 
 

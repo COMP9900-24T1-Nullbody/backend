@@ -1,8 +1,4 @@
-swagger: '2.0'
-info:
-  version: 1.0.0
-  title: Compare Company Info API
-  description: API for comparing company information
+
 paths:
   /compare_company_info/v3:
     post:
