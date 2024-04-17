@@ -14,7 +14,7 @@ def generate_token(SECRET_KEY, user_info):
         "microsoft_id": microsoft_id,
         "avatar_url": avatar_url,
         "exp": datetime.datetime.now(datetime.UTC)
-        + datetime.timedelta(minutes=30),  # 设置 token 过期时间
+        + datetime.timedelta(minutes=360),  # 设置 token 过期时间
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token
