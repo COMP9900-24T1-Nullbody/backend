@@ -6,22 +6,22 @@ CREATE TABLE indicators (
     description TEXT NOT NULL
 );
 
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Carbon Emissions and Air Pollutants', 'Description for Carbon Emissions and Air Pollutants');
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Energy Consumption and Electricity Consumption', 'Description for Energy Consumption and Electricity Consumption');
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Renewable Energy and Waste', 'Description for Renewable Energy and Waste');
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Water Withdrawal and Sustainable Practices', 'Description for Water Withdrawal and Sustainable Practices');
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Biodiversity and Climate Change Management', 'Description for Biodiversity and Climate Change Management');
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Human Rights and Gender Equality', 'Description for Human Rights and Gender Equality');
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Employee Well-being and Safety', 'Description for Employee Well-being and Safety');
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Ethical Practices and Compliance', 'Description for Ethical Practices and Compliance');
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Certifications', 'Description for Certifications');
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Labor Relations and Employee Engagement', 'Description for Labor Relations and Employee Engagement');
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Corporate Social Responsibility (CSR) and Diversity', 'Description for Corporate Social Responsibility (CSR) and Diversity');
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Board Structure and Independence', 'Description for Board Structure and Independence');
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Audit, Compliance, and Risk Management', 'Description for Audit, Compliance, and Risk Management');
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Compensation Policy and Performance Incentives', 'Description for Compensation Policy and Performance Incentives');
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Transparency and Accountability', 'Description for Transparency and Accountability');
-INSERT INTO indicators (user_id, name, description) VALUES (0, 'Shareholder Rights and Corporate Governance', 'Description for Shareholder Rights and Corporate Governance');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Carbon Emissions and Air Pollutants', 'Description for Amount of Carbon Dioxide, Other Greenhouse Gases Released, and Contamination of Air with Harmful Substances over a Given Period');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Energy Consumption and Electricity Consumption', 'Description for Amount of Energy and Electricity Consumption over a Given Period');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Renewable Energy and Waste', 'Description for Amount of Renewable Energy Consumption and Waste over a Given Period');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Water Withdrawal and Sustainable Practices', 'Description for Process of Removing Water from Its Natural Source and Approaches and Methods that Aim to Reduce the Negative Impact of Human Activities on the Environment');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Biodiversity and Climate Change Management', 'Description for strategies and actions we take to address the interconnected challenges of biodiversity loss and climate change');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Human Rights and Gender Equality', 'Description for fundamental rights and freedoms that belong to all people, regardless of their gender identity or expression');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Employee Well-being and Safety', 'Description for Employee Well-being and Safety refers to a holistic approach that prioritizes the physical, mental, and emotional well-being of employees alongside their safety in the workplace.');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Ethical Practices and Compliance', 'Description for Guide Responsible Behavior Within an Organization');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Certifications', 'Description for Wether the Certification of a Company, Product, or Service');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Labor Relations and Employee Engagement', 'Description for Fostering Positive Relationships, Promoting Employee Well-being, Creating a Sense of Ownership, and Creating a More Productive and Satisfying Work Environment');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Corporate Social Responsibility (CSR) and Diversity', 'Description for Companys Commitment to Operating Ethically and Sustainably, and Variety of Human Experiences, Backgrounds, and Identities Within a Company Workforce');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Board Structure and Independence', 'Description for the Number and Type of Directors on the Board and the Ability of Non-Executive Directors to Make Independent Judgments Without Undue Influence from Management or Controlling Shareholders');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Audit, Compliance, and Risk Management', 'Description for Crucial Functions that Work Together to Safeguard an Organization Financial Health, Operational Efficiency, and Overall Well-being');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Compensation Policy and Performance Incentives', 'Description Of a Company Human Resource (HR) Strategy that Work Together to Attract, Retain, and Motivate Employees');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Transparency and Accountability', 'Description for Building Trust and Ensuring Ethical Conduct Within an Organization');
+INSERT INTO indicators (user_id, name, description) VALUES (0, 'Shareholder Rights and Corporate Governance', 'Description for Relationship Between Shareholders (Owners) and the Companies They Invest In');
 
 
 DROP TABLE IF EXISTS indicator_metrics;
