@@ -109,17 +109,17 @@ class SQL:
     # index the data in the database to escalate
     def data_import(self):
         files = [
-            "analysis_histories",
+            "metrics",
+            "indicators",
+            "frameworks",
             "companies",
             "countries",
             "favourites",
-            "frameworks",
-            "indexes",
-            "indicators",
-            "metrics",
-            "others",
+            "analysis_histories",
             "scores",
-            "weights"
+            "weights",
+            "others",
+            "indexes",
         ]
 
         if not self.connection:
@@ -141,6 +141,7 @@ class SQL:
             self.connection.rollback()
         finally:
             cursor.close()
+
 
 # Define a class for handling Redis connections
 class REDIS:
